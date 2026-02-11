@@ -1,6 +1,3 @@
-# Environment variables
-.env
-
 # Python
 __pycache__/
 *.py[cod]
@@ -10,12 +7,20 @@ __pycache__/
 venv/
 env/
 ENV/
+*.egg-info/
+dist/
+build/
 
-# Airflow
+# Prefect
+.prefect/
+
+# Logs
+*.log
 logs/
-airflow.db
-airflow.cfg
-unittests.cfg
+
+# Database
+*.db
+*.sqlite
 
 # IDE
 .vscode/
@@ -27,5 +32,10 @@ unittests.cfg
 .DS_Store
 Thumbs.db
 
-# Docker
-*.log
+# Sensitive
+.env
+config.ini
+*_password.py
+
+# Test files
+test_*.py
