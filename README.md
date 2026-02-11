@@ -16,7 +16,7 @@ This project builds an automated data pipeline that:
 - **Python 3.11** - Core language
 - **Prefect** - Workflow orchestration
 - **PostgreSQL 15** - Data warehouse
-- **BeautifulSoup4** - Web scraping
+- **Selenium + BeautifulSoup4** - Web scraping (handles JavaScript-rendered sites)
 - **Pandas** - Data processing
 - **psycopg2** - PostgreSQL adapter
 
@@ -109,7 +109,7 @@ whatspoppingABQ/
 │   └── db_utils.py
 ├── scrapers/           # Web scraping modules
 │   ├── __init__.py
-│   └── balloon_fiesta_scraper.py
+│   └── isotopes_scraper.py
 ├── flows/              # Prefect workflow definitions
 │   ├── __init__.py
 │   └── ingest_events.py
@@ -142,9 +142,9 @@ git push origin main
 ### Sprint 1: Basic Event Ingestion Pipeline
 
 - [x] **Issue #1:** Development environment setup
-- [ ] **Issue #2:** Create database schema
-- [ ] **Issue #3:** Research data sources
-- [ ] **Issue #4:** Build event scraper
+- [x] **Issue #2:** Create database schema
+- [x] **Issue #3:** Research data sources
+- [x] **Issue #4:** Build event scraper
 - [ ] **Issue #5:** Create database utilities
 - [ ] **Issue #6:** Build Prefect flow
 - [ ] **Issue #7:** End-to-end testing
