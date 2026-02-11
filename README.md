@@ -145,7 +145,7 @@ git push origin main
 - [x] **Issue #2:** Create database schema
 - [x] **Issue #3:** Research data sources
 - [x] **Issue #4:** Build event scraper
-- [ ] **Issue #5:** Create database utilities
+- [x] **Issue #5:** Create database utilities
 - [ ] **Issue #6:** Build Prefect flow
 - [ ] **Issue #7:** End-to-end testing
 - [ ] **Issue #8:** Documentation

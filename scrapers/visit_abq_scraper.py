@@ -18,10 +18,9 @@ from typing import List, Dict, Tuple
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 def scrape_events_selenium(url: str = None, max_pages: int = 3, max_wait: int = 10) -> List[Dict]:
     """
-    Scrape events using Selenium (handles JavaScript rendering)
+    Scrape events using Selenium by clicking "Next" button
     
     Args:
         url: URL to scrape (default: search-calendar)
@@ -36,7 +35,7 @@ def scrape_events_selenium(url: str = None, max_pages: int = 3, max_wait: int = 
     
     # Setup Chrome options
     options = Options()
-    options.add_argument('--headless')  # Run without opening browser window
+    options.add_argument('--headless')
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument('--disable-gpu')
@@ -51,49 +50,30 @@ def scrape_events_selenium(url: str = None, max_pages: int = 3, max_wait: int = 
     all_events = []
     
     try:
+        logger.info(f"Loading {url}")
+        driver.get(url)
+        
         for page_num in range(1, max_pages + 1):
-            # Construct page URL
-            if page_num == 1:
-                page_url = url
-            else:
-                # Check URL structure for pagination
-                separator = '&' if '?' in url else '?'
-                page_url = f"{url}{separator}page={page_num}"
+            logger.info(f"Scraping page {page_num}...")
             
-            logger.info(f"Loading page {page_num}: {page_url}")
-            driver.get(page_url)
-            
-            # Wait for page to load
-            logger.info(f"Waiting for events to load on page {page_num}...")
-            
+            # Wait for events to load
             try:
                 WebDriverWait(driver, max_wait).until(
                     EC.presence_of_element_located((By.CLASS_NAME, "listing-item"))
                 )
             except:
-                try:
-                    WebDriverWait(driver, max_wait).until(
-                        EC.presence_of_element_located((By.CLASS_NAME, "title"))
-                    )
-                except:
-                    logger.warning(f"Timeout waiting for elements on page {page_num}")
-                    break
+                logger.warning(f"Timeout waiting for events on page {page_num}")
+                break
             
             # Let page fully render
             time.sleep(2)
             
-            # Get page source
-            page_source = driver.page_source
-            soup = BeautifulSoup(page_source, 'html.parser')
-            
-            # Try to find events
+            # Parse current page
+            soup = BeautifulSoup(driver.page_source, 'html.parser')
             event_elements = soup.find_all('li', class_='listing-item')
             
             if not event_elements:
-                event_elements = soup.find_all('li', class_='list-item')
-            
-            if not event_elements:
-                logger.info(f"No events found on page {page_num}, stopping pagination")
+                logger.info(f"No events found on page {page_num}")
                 break
             
             logger.info(f"Found {len(event_elements)} events on page {page_num}")
@@ -109,20 +89,75 @@ def scrape_events_selenium(url: str = None, max_pages: int = 3, max_wait: int = 
                     logger.warning(f"Error parsing event: {e}")
                     continue
             
-            logger.info(f"Successfully parsed {len(page_events)} events from page {page_num}")
+            logger.info(f"Parsed {len(page_events)} events from page {page_num}")
             all_events.extend(page_events)
             
-            # Check if there's a next page button
+            # If this is the last page we want, stop
+            if page_num >= max_pages:
+                logger.info(f"Reached max pages ({max_pages})")
+                break
+            
+            # Try to find and click "Next" button
             try:
-                next_button = driver.find_element(By.CSS_SELECTOR, "a.next, li.next a, .pagination-next")
-                if not next_button or 'disabled' in next_button.get_attribute('class'):
-                    logger.info("No more pages available")
+                # Try multiple selectors for next button
+                next_button = None
+                
+                # Try common next button selectors
+                selectors = [
+                    "a.next",
+                    "li.next a",
+                    ".pagination-next",
+                    "a[rel='next']",
+                    "a:contains('Next')",
+                    ".pagination a.next"
+                ]
+                
+                for selector in selectors:
+                    try:
+                        buttons = driver.find_elements(By.CSS_SELECTOR, selector)
+                        if buttons:
+                            next_button = buttons[0]
+                            logger.info(f"Found next button with selector: {selector}")
+                            break
+                    except:
+                        continue
+                
+                if not next_button:
+                    logger.info("No next button found, stopping pagination")
                     break
-            except:
-                logger.info("Could not find next page button, stopping pagination")
+                
+                # Check if button is disabled
+                classes = next_button.get_attribute('class') or ''
+                if 'disabled' in classes.lower():
+                    logger.info("Next button is disabled, no more pages")
+                    break
+                
+                # Click using JavaScript (avoids "element intercepted" errors)
+                logger.info("Clicking next button...")
+                driver.execute_script("arguments[0].click();", next_button)
+                
+                # Wait for page to load
+                time.sleep(3)
+                
+            except Exception as e:
+                logger.warning(f"Error clicking next button: {e}")
                 break
         
-        logger.info(f"Total events scraped across all pages: {len(all_events)}")
+        logger.info(f"Total events collected: {len(all_events)}")
+        
+        # Deduplicate events
+        seen = set()
+        unique_events = []
+        for event in all_events:
+            key = (event.get('event_name'), event.get('event_date'))
+            if key not in seen:
+                seen.add(key)
+                unique_events.append(event)
+        
+        if len(unique_events) < len(all_events):
+            logger.info(f"Removed {len(all_events) - len(unique_events)} duplicate events")
+        
+        logger.info(f"Returning {len(unique_events)} unique events")
         
     except Exception as e:
         logger.error(f"Error during scraping: {e}")
@@ -131,8 +166,7 @@ def scrape_events_selenium(url: str = None, max_pages: int = 3, max_wait: int = 
         driver.quit()
         logger.info("Browser closed")
     
-    return all_events
-
+    return unique_events
 
 def parse_selenium_event(element) -> Dict:
     """Parse event from Selenium-rendered HTML"""
