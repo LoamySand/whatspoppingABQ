@@ -146,9 +146,9 @@ git push origin main
 - [x] **Issue #3:** Research data sources
 - [x] **Issue #4:** Build event scraper
 - [x] **Issue #5:** Create database utilities
-- [ ] **Issue #6:** Build Prefect flow
-- [ ] **Issue #7:** End-to-end testing
-- [ ] **Issue #8:** Documentation
+- [x] **Issue #6:** Build Prefect flow
+- [x] **Issue #7:** End-to-end testing
+- [x] **Issue #8:** Documentation
 
 ### Future Sprints
 
