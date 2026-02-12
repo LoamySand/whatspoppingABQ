@@ -18,7 +18,7 @@ from typing import List, Dict, Tuple
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-def scrape_events_selenium(url: str = None, max_pages: int = 3, max_wait: int = 10) -> List[Dict]:
+def scrape_events_selenium(url: str = None, max_pages: int = 20, max_wait: int = 10) -> List[Dict]:
     """
     Scrape events using Selenium by clicking "Next" button
     
@@ -280,7 +280,7 @@ if __name__ == "__main__":
     
     # Scrape multiple pages (default 3)
     print("Scraping up to 3 pages of events...")
-    events = scrape_events_selenium(max_pages=3)
+    events = scrape_events_selenium(max_pages=20)
     
     print(f"\nTotal events scraped: {len(events)}")
     print()

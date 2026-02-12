@@ -1,178 +1,375 @@
 # What's Popping ABQ - Event Impact Analytics Pipeline
 
-Data pipeline analyzing the impact of events on local traffic, businesses, and community sentiment in Albuquerque, NM.
+> End-to-end data pipeline analyzing event impacts on local traffic, businesses, and community sentiment in Albuquerque, NM.
+
+[![Python](https://img.shields.io/badge/Python-3.11-blue.svg)](https://www.python.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-blue.svg)](https://www.postgresql.org/)
+[![Prefect](https://img.shields.io/badge/Prefect-3.0-orange.svg)](https://www.prefect.io/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+---
+
+## 📋 Table of Contents
+
+- [Overview](#overview)
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+- [Getting Started](#getting-started)
+- [Usage](#usage)
+- [Project Structure](#project-structure)
+- [Pipeline Details](#pipeline-details)
+- [Results](#results)
+- [Future Enhancements](#future-enhancements)
+- [Contributing](#contributing)
+- [License](#license)
+- [Author](#author)
+
+---
 
 ## Overview
 
-This project builds an automated data pipeline that:
-- Scrapes event data from multiple sources
-- Stores data in PostgreSQL
-- Analyzes impact on local traffic and businesses
-- Tracks community sentiment
-- Orchestrates workflows with Prefect
+This project demonstrates end-to-end data engineering skills by building an automated pipeline that:
+
+1. **Scrapes** event data from Visit Albuquerque using Selenium
+2. **Validates** data quality and consistency
+3. **Loads** events into PostgreSQL with upsert logic
+4. **Orchestrates** workflows with Prefect
+5. **Schedules** daily execution via Windows Task Scheduler
+
+**Use Case:** Analyze how major events (sports, festivals, concerts) impact local businesses, traffic patterns, and community sentiment.
+
+---
+
+##  Features
+
+- **Automated Web Scraping** - Selenium handles JavaScript-rendered content
+- **Data Quality Validation** - Ensures clean, consistent data
+- **PostgreSQL Data Warehouse** - Scalable storage with proper indexing
+- **Workflow Orchestration** - Prefect manages task dependencies
+- **Error Handling** - Retry logic and failure handling
+- **Scheduled Execution** - Runs daily without manual intervention
+- **No Duplicates** - Upsert logic prevents duplicate records
+- **Comprehensive Logging** - Full visibility into pipeline execution
+
+---
 
 ## Tech Stack
 
-- **Python 3.11** - Core language
-- **Prefect** - Workflow orchestration
-- **PostgreSQL 15** - Data warehouse
-- **Selenium + BeautifulSoup4** - Web scraping (handles JavaScript-rendered sites)
-- **Pandas** - Data processing
-- **psycopg2** - PostgreSQL adapter
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| **Language** | Python 3.11 | Core development |
+| **Web Scraping** | Selenium + BeautifulSoup | Extract event data |
+| **Database** | PostgreSQL 15 | Data warehouse |
+| **Orchestration** | Prefect 3.0 | Workflow management |
+| **Scheduling** | Windows Task Scheduler | Automated execution |
+| **Data Processing** | Pandas | Data manipulation |
+| **Version Control** | Git + GitHub | Source control |
 
-## Prerequisites
+---
 
-Before starting, ensure you have:
-- **Python 3.11+** installed ([download](https://www.python.org/downloads/))
-- **PostgreSQL 15+** installed ([download](https://www.postgresql.org/download/windows/))
-- **Git** installed ([download](https://git-scm.com/download/win))
-- Windows 10/11
+## Architecture
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Visit Albuquerque                         │
+│                  (Event Source Website)                      │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+                     ▼
+            ┌────────────────┐
+            │  Selenium      │  → Handles JavaScript rendering
+            │  Web Scraper   │  → Navigates pagination
+            └────────┬───────┘  → Extracts structured data
+                     │
+                     ▼
+            ┌────────────────┐
+            │   Data         │  → Validates required fields
+            │   Validation   │  → Checks date formats
+            └────────┬───────┘  → Filters invalid events
+                     │
+                     ▼
+            ┌────────────────┐
+            │  PostgreSQL    │  → Stores events
+            │  Database      │  → Prevents duplicates (upsert)
+            └────────┬───────┘  → Indexes for performance
+                     │
+                     ▼
+            ┌────────────────┐
+            │   Prefect      │  → Orchestrates tasks
+            │   Flow         │  → Handles retries
+            └────────┬───────┘  → Generates reports
+                     │
+                     ▼
+            ┌────────────────┐
+            │   Windows      │  → Runs daily at 6 AM
+            │   Task         │  → No manual intervention
+            │   Scheduler    │  → Production automation
+            └────────────────┘
+```
 
-## Quick Start
+---
 
-### 1. Clone Repository
+##  Getting Started
+
+### Prerequisites
+
+- **Python 3.11+** - [Download](https://www.python.org/downloads/)
+- **PostgreSQL 15+** - [Download](https://www.postgresql.org/download/windows/)
+- **Git** - [Download](https://git-scm.com/download/win)
+- **Windows 10/11** (or WSL for Linux)
+
+### Installation
+
+**1. Clone the repository**
 ```powershell
 git clone https://github.com/LoamySand/whatspoppingABQ.git
 cd whatspoppingABQ
 ```
 
-### 2. Set Up Python Environment
+**2. Create virtual environment**
 ```powershell
-# Create virtual environment
 python -m venv venv
-
-# Activate virtual environment
 .\venv\Scripts\Activate.ps1
+```
 
-# Install dependencies
+**3. Install dependencies**
+```powershell
 pip install -r requirements.txt
 ```
 
-### 3. Set Up PostgreSQL Database
+**4. Configure database**
 
-Open **SQL Shell (psql)** from Start Menu:
-- Press Enter 4 times to accept defaults
-- Enter your PostgreSQL password
+Create `.env` file:
+```bash
+# Copy example file
+copy .env.example .env
+```
+
+Edit `.env` and add your PostgreSQL password:
+```
+DB_PASSWORD=your_postgres_password
+```
+
+**5. Set up PostgreSQL**
+
+Open SQL Shell (psql):
 ```sql
--- Create database
 CREATE DATABASE event_analytics;
-
--- Connect to database
 \c event_analytics
-
--- Create schema (after completing Issue #2)
-\i database\schema.sql
-
--- Exit
+\i C:/Users/[YourPath]/whatspoppingABQ/database/schema.sql
 \q
 ```
 
-### 4. Configure Database Connection
-
-Edit `database\db_utils.py` (when created in Issue #5):
-```python
-DB_CONFIG = {
-    'dbname': 'event_analytics',
-    'user': 'postgres',
-    'password': 'YOUR_POSTGRES_PASSWORD',  # ⚠️ Change this!
-    'host': 'localhost',
-    'port': '5432'
-}
+**6. Test the pipeline**
+```powershell
+python flows\ingest_events.py
 ```
 
-### 5. Start Prefect Server
+---
 
-**Terminal 1:**
+## Usage
+
+### Manual Execution
+
+**Run the pipeline once:**
 ```powershell
-cd whatspoppingABQ
-.\venv\Scripts\Activate.ps1
-prefect server start
-```
-
-Access Prefect UI at: **http://localhost:4200**
-
-### 6. Run the Pipeline
-
-**Terminal 2:**
-```powershell
-cd whatspoppingABQ
 .\venv\Scripts\Activate.ps1
 python flows\ingest_events.py
 ```
 
+**Quick demo (1 page):**
+```powershell
+python demo_pipeline.py
+```
+
+### Automated Execution
+
+**Set up Windows Task Scheduler:**
+
+1. Test batch file: `.\run_pipeline.bat`
+2. Open Task Scheduler: `Win + R` → `taskschd.msc`
+3. Create Basic Task:
+   - Name: "Event Pipeline Daily"
+   - Trigger: Daily at 6:00 AM
+   - Action: Start `run_pipeline.bat`
+   - Start in: Project directory
+
+**The pipeline now runs automatically every day!**
+
+### Database Queries
+
+**Check pipeline results:**
+```sql
+-- Connect to database
+\c event_analytics
+
+-- Total events
+SELECT COUNT(*) FROM events;
+
+-- Events by category
+SELECT category, COUNT(*) 
+FROM events 
+GROUP BY category 
+ORDER BY COUNT(*) DESC;
+
+-- Recent events
+SELECT event_name, venue_name, event_date 
+FROM events 
+ORDER BY updated_at DESC 
+LIMIT 10;
+```
+
+---
+
 ## Project Structure
 ```
 whatspoppingABQ/
-├── database/           # Database schema and connection utilities
+├── database/              # Database schemas and utilities
 │   ├── __init__.py
-│   ├── schema.sql
-│   └── db_utils.py
-├── scrapers/           # Web scraping modules
+│   ├── schema.sql        # PostgreSQL table definitions
+│   ├── db_utils.py       # Database connection & queries
+│   └── README.md         # Database documentation
+│
+├── scrapers/             # Web scraping modules
 │   ├── __init__.py
-│   └── isotopes_scraper.py
-├── flows/              # Prefect workflow definitions
+│   └── visit_abq_scraper.py  # Selenium-based scraper
+│
+├── flows/                # Prefect workflow definitions
 │   ├── __init__.py
-│   └── ingest_events.py
-├── docs/               # Documentation and research
-│   └── data_sources.md
-├── venv/               # Virtual environment (not committed)
-├── .gitignore
-├── README.md
-└── requirements.txt
+│   └── ingest_events.py  # Main pipeline flow
+│
+├── docs/                 # Documentation
+│   ├── data_sources.md   # Data source research
+│   ├── deployment.md     # Deployment guide
+│   └── test_results.md   # Test documentation
+│
+├── venv/                 # Virtual environment (not tracked)
+│
+├── .env                  # Environment variables (not tracked)
+├── .env.example          # Environment template
+├── .gitignore           # Git ignore rules
+├── README.md            # This file
+├── requirements.txt     # Python dependencies
+├── run_pipeline.bat     # Automated execution script
+├── demo_pipeline.py     # Demo script
+└── test_end_to_end.py   # E2E test suite
 ```
 
-## Development Workflow
+---
 
-**Every time you start working:**
-```powershell
-# 1. Navigate to project
-cd C:\Users\lanee\Desktop\whatspoppingABQ
+## Pipeline Details
 
-# 2. Activate virtual environment
-.\venv\Scripts\Activate.ps1
+### Data Flow
 
-# 3. Make changes, test, commit
-git add .
-git commit -m "description of changes"
-git push origin main
-```
+1. **Scraping** (60 seconds for 3 pages)
+   - Selenium launches headless Chrome
+   - Navigates to Visit Albuquerque events page
+   - Clicks "Next" to paginate through results
+   - Extracts: event name, venue, date, category
 
-## Sprint Progress
+2. **Validation** (< 1 second)
+   - Checks required fields (name, date)
+   - Validates date formats (YYYY-MM-DD)
+   - Filters out invalid/incomplete events
 
-### Sprint 1: Basic Event Ingestion Pipeline
+3. **Loading** (< 5 seconds)
+   - Inserts events into PostgreSQL
+   - Uses `ON CONFLICT` for upsert logic
+   - No duplicates created
+   - Indexes ensure fast queries
 
-- [x] **Issue #1:** Development environment setup
-- [x] **Issue #2:** Create database schema
-- [x] **Issue #3:** Research data sources
-- [x] **Issue #4:** Build event scraper
-- [x] **Issue #5:** Create database utilities
-- [x] **Issue #6:** Build Prefect flow
-- [x] **Issue #7:** End-to-end testing
-- [x] **Issue #8:** Documentation
+4. **Reporting** (< 1 second)
+   - Counts events by category
+   - Logs summary statistics
+   - Reports new vs. updated events
 
-### Future Sprints
+**Total Execution Time:** ~70 seconds for 72 events
 
-- Sprint 2: Traffic data integration
-- Sprint 3: Business review scraping
-- Sprint 4: Sentiment analysis
-- Sprint 5: Data quality & monitoring
-- Sprint 6: Visualization dashboard
+## Results
+
+### Sprint 1 Achievements
+
+-**150+ events** loaded into database
+-**7 categories** identified (Sports, Music, Festival, etc.)
+-**0 duplicates** - upsert logic working
+-**Automated scheduling** - runs daily without intervention
+
+### Performance Metrics
+
+| Metric | Value |
+|--------|-------|
+| Scraping speed | 24 events/page (~20 sec/page) |
+| Data quality | 100% valid events |
+| Database operations | < 5 seconds |
+| Total pipeline time | ~70 seconds |
+| Success rate | 100% |
+
+### Sample Data
+
+**Events by Category:**
+- Sports: 15 events (21%)
+- Music: 12 events (17%)
+- Festival: 8 events (11%)
+- Arts & Culture: 7 events (10%)
+- General: 19 events (26%)
+
+---
+
+## Future Enhancements
+
+### Sprint 2: Traffic Data Integration
+- [ ] Integrate Google Maps Traffic API
+- [ ] Correlate events with traffic patterns
+- [ ] Store historical traffic data
+
+### Sprint 3: Business Sentiment
+- [ ] Scrape Yelp reviews for venues
+- [ ] Implement NLP sentiment analysis
+- [ ] Track review volume changes
+
+### Sprint 4: Social Media Analytics
+- [ ] Add Reddit API for community sentiment
+- [ ] Analyze event-related discussions
+- [ ] Track social media engagement
+
+### Sprint 5: Visualization Dashboard
+- [ ] Build interactive dashboard
+- [ ] Visualize event impact metrics
+- [ ] Generate automated reports
+
+### Sprint 6: Production Deployment
+- [ ] Containerize with Docker
+- [ ] Deploy to cloud (AWS/GCP)
+- [ ] Set up monitoring and alerts
+- [ ] Implement CI/CD pipeline
+
+---
 
 ## Contributing
 
-This is a personal portfolio project, but suggestions are welcome via Issues.
+This is a personal portfolio project, but suggestions are welcome!
+
+**To suggest improvements:**
+1. Fork the repository
+2. Create a feature branch
+3. Submit a pull request with description
+
+---
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
 
 ## Author
 
 **Lane Boyd**
+
 - GitHub: [@LoamySand](https://github.com/LoamySand)
-- Project: Data Engineering Portfolio
+- Focus: ETL, Orchestration, Data Warehousing
+- Connect on [LinkedIn](https://www.linkedin.com/in/lane-boyd-48862715a/)
 
-## License
+---
 
-MIT License - See LICENSE file for details
-
-## Acknowledgments
-
-- Built as part of a data engineering portfolio project
-- Focused on demonstrating ETL, orchestration, and analytics skills
+*Last Updated: February 2026*

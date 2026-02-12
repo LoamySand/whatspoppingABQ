@@ -336,7 +336,223 @@ def clear_all_events() -> int:
     finally:
         conn.close()
 
+# ============================================================
+# VENUE LOCATION FUNCTIONS
+# ============================================================
 
+def insert_venue(venue_name: str, latitude: float, longitude: float, 
+                 address: str = None, place_id: str = None) -> Optional[int]:
+    """
+    Insert or update a venue location.
+    
+    Args:
+        venue_name: Name of the venue
+        latitude: Latitude coordinate
+        longitude: Longitude coordinate
+        address: Full address (optional)
+        place_id: Google Place ID (optional)
+        
+    Returns:
+        venue_id of inserted/updated venue
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            # Upsert venue
+            cur.execute("""
+                INSERT INTO venue_locations 
+                (venue_name, address, latitude, longitude, place_id)
+                VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (venue_name) 
+                DO UPDATE SET
+                    address = EXCLUDED.address,
+                    latitude = EXCLUDED.latitude,
+                    longitude = EXCLUDED.longitude,
+                    place_id = EXCLUDED.place_id,
+                    updated_at = CURRENT_TIMESTAMP
+                RETURNING venue_id
+            """, (venue_name, address, latitude, longitude, place_id))
+            
+            venue_id = cur.fetchone()[0]
+            conn.commit()
+            
+            logger.info(f"Inserted/updated venue: {venue_name} (ID: {venue_id})")
+            return venue_id
+            
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Error inserting venue: {e}")
+        raise
+    finally:
+        conn.close()
+
+
+def get_venue_by_name(venue_name: str) -> Optional[Dict]:
+    """
+    Get venue information by name.
+    
+    Args:
+        venue_name: Name of the venue
+        
+    Returns:
+        Dictionary with venue info or None
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT venue_id, venue_name, address, latitude, longitude, place_id
+                FROM venue_locations
+                WHERE venue_name = %s
+            """, (venue_name,))
+            
+            row = cur.fetchone()
+            if row:
+                return {
+                    'venue_id': row[0],
+                    'venue_name': row[1],
+                    'address': row[2],
+                    'latitude': row[3],
+                    'longitude': row[4],
+                    'place_id': row[5]
+                }
+            return None
+    finally:
+        conn.close()
+
+
+def get_all_venues() -> List[Dict]:
+    """
+    Get all venues from database.
+    
+    Returns:
+        List of venue dictionaries
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT venue_id, venue_name, address, latitude, longitude
+                FROM venue_locations
+                ORDER BY venue_name
+            """)
+            
+            venues = []
+            for row in cur.fetchall():
+                venues.append({
+                    'venue_id': row[0],
+                    'venue_name': row[1],
+                    'address': row[2],
+                    'latitude': row[3],
+                    'longitude': row[4]
+                })
+            return venues
+    finally:
+        conn.close()
+
+
+# ============================================================
+# TRAFFIC MEASUREMENT FUNCTIONS
+# ============================================================
+
+def insert_traffic_measurement(venue_id: int, measurement_time, 
+                               traffic_data: Dict) -> int:
+    """
+    Insert a traffic measurement.
+    
+    Args:
+        venue_id: Venue ID
+        measurement_time: When measurement was taken
+        traffic_data: Dictionary with traffic metrics
+        
+    Returns:
+        measurement_id of inserted record
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO traffic_measurements (
+                    venue_id, measurement_time, traffic_level,
+                    avg_speed_mph, typical_speed_mph,
+                    travel_time_seconds, typical_time_seconds,
+                    delay_minutes, data_source,
+                    origin_lat, origin_lng,
+                    destination_lat, destination_lng,
+                    distance_miles, raw_response
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING measurement_id
+            """, (
+                venue_id,
+                measurement_time,
+                traffic_data.get('traffic_level'),
+                traffic_data.get('avg_speed_mph'),
+                traffic_data.get('typical_speed_mph'),
+                traffic_data.get('travel_time_seconds'),
+                traffic_data.get('typical_time_seconds'),
+                traffic_data.get('delay_minutes'),
+                traffic_data.get('data_source', 'google_maps'),
+                traffic_data.get('origin_lat'),
+                traffic_data.get('origin_lng'),
+                traffic_data.get('destination_lat'),
+                traffic_data.get('destination_lng'),
+                traffic_data.get('distance_miles'),
+                traffic_data.get('raw_response')
+            ))
+            
+            measurement_id = cur.fetchone()[0]
+            conn.commit()
+            
+            logger.info(f"Inserted traffic measurement for venue {venue_id}")
+            return measurement_id
+            
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Error inserting traffic measurement: {e}")
+        raise
+    finally:
+        conn.close()
+
+
+def get_traffic_for_venue(venue_id: int, limit: int = 100) -> List[Dict]:
+    """
+    Get recent traffic measurements for a venue.
+    
+    Args:
+        venue_id: Venue ID
+        limit: Max number of measurements to return
+        
+    Returns:
+        List of traffic measurement dictionaries
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT 
+                    measurement_id, measurement_time,
+                    traffic_level, delay_minutes,
+                    avg_speed_mph, distance_miles
+                FROM traffic_measurements
+                WHERE venue_id = %s
+                ORDER BY measurement_time DESC
+                LIMIT %s
+            """, (venue_id, limit))
+            
+            measurements = []
+            for row in cur.fetchall():
+                measurements.append({
+                    'measurement_id': row[0],
+                    'measurement_time': row[1],
+                    'traffic_level': row[2],
+                    'delay_minutes': row[3],
+                    'avg_speed_mph': row[4],
+                    'distance_miles': row[5]
+                })
+            return measurements
+    finally:
+        conn.close()
 if __name__ == "__main__":
     """
     Test database utilities when run directly.
