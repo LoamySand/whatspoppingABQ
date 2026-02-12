@@ -69,20 +69,28 @@ def insert_events(events: List[Dict]) -> int:
     """
     Insert events into database with upsert logic.
     
+    Uses new schema with start/end dates and times.
+    
     Deduplicates events before insertion to avoid conflicts.
     Uses ON CONFLICT to update existing events based on
-    unique constraint (event_name, event_date).
+    unique constraint (event_name, event_start_date, venue_name).
     
     Args:
         events: List of event dictionaries with keys:
                 - event_name (required)
                 - venue_name
-                - event_date (required)
-                - event_time
+                - event_start_date (required)
+                - event_end_date
+                - event_start_time
+                - event_end_time
+                - is_multi_day
                 - category
+                - sponsor
+                - cost_min, cost_max, cost_description
+                - phone, email
+                - ticket_url, website_url
                 - expected_attendance
-                - latitude
-                - longitude
+                - latitude, longitude
                 - source_url
     
     Returns:
@@ -95,14 +103,17 @@ def insert_events(events: List[Dict]) -> int:
         logger.warning("No events to insert")
         return 0
     
-    # Deduplicate events based on (event_name, event_date)
-    # Keep the first occurrence of each unique event
+    # Deduplicate events based on (event_name, event_start_date, venue_name)
     seen = set()
     unique_events = []
     duplicates_removed = 0
     
     for event in events:
-        key = (event.get('event_name'), event.get('event_date'))
+        key = (
+            event.get('event_name'), 
+            event.get('event_start_date'),
+            event.get('venue_name')
+        )
         if key not in seen:
             seen.add(key)
             unique_events.append(event)
@@ -121,14 +132,34 @@ def insert_events(events: List[Dict]) -> int:
             # SQL query with upsert logic
             query = """
                 INSERT INTO events 
-                (event_name, venue_name, event_date, event_time, 
-                 category, expected_attendance, latitude, longitude, source_url)
+                (event_name, venue_name, 
+                 event_start_date, event_end_date, 
+                 event_start_time, event_end_time,
+                 is_multi_day,
+                 category, 
+                 sponsor,
+                 cost_min, cost_max, cost_description,
+                 phone, email,
+                 ticket_url, website_url,
+                 expected_attendance, 
+                 latitude, longitude, 
+                 source_url)
                 VALUES %s
-                ON CONFLICT (event_name, event_date) 
+                ON CONFLICT (event_name, event_start_date, venue_name) 
                 DO UPDATE SET
-                    venue_name = EXCLUDED.venue_name,
-                    event_time = EXCLUDED.event_time,
+                    event_end_date = EXCLUDED.event_end_date,
+                    event_start_time = EXCLUDED.event_start_time,
+                    event_end_time = EXCLUDED.event_end_time,
+                    is_multi_day = EXCLUDED.is_multi_day,
                     category = EXCLUDED.category,
+                    sponsor = EXCLUDED.sponsor,
+                    cost_min = EXCLUDED.cost_min,
+                    cost_max = EXCLUDED.cost_max,
+                    cost_description = EXCLUDED.cost_description,
+                    phone = EXCLUDED.phone,
+                    email = EXCLUDED.email,
+                    ticket_url = EXCLUDED.ticket_url,
+                    website_url = EXCLUDED.website_url,
                     expected_attendance = EXCLUDED.expected_attendance,
                     latitude = EXCLUDED.latitude,
                     longitude = EXCLUDED.longitude,
@@ -141,9 +172,20 @@ def insert_events(events: List[Dict]) -> int:
                 (
                     event.get('event_name'),
                     event.get('venue_name'),
-                    event.get('event_date'),
-                    event.get('event_time'),
+                    event.get('event_start_date'),
+                    event.get('event_end_date'),
+                    event.get('event_start_time'),
+                    event.get('event_end_time'),
+                    event.get('is_multi_day', False),
                     event.get('category'),
+                    event.get('sponsor'),
+                    event.get('cost_min'),
+                    event.get('cost_max'),
+                    event.get('cost_description'),
+                    event.get('phone'),
+                    event.get('email'),
+                    event.get('ticket_url'),
+                    event.get('website_url'),
                     event.get('expected_attendance'),
                     event.get('latitude'),
                     event.get('longitude'),
@@ -553,6 +595,256 @@ def get_traffic_for_venue(venue_id: int, limit: int = 100) -> List[Dict]:
             return measurements
     finally:
         conn.close()
+# ============================================================
+# ENHANCED EVENT QUERY FUNCTIONS
+# ============================================================
+
+def get_upcoming_events(days_ahead: int = 7) -> List[Dict]:
+    """
+    Get events happening in the next N days.
+    
+    Args:
+        days_ahead: Number of days to look ahead
+        
+    Returns:
+        List of event dictionaries
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT 
+                    event_id, event_name, venue_name,
+                    event_start_date, event_end_date,
+                    event_start_time, event_end_time,
+                    is_multi_day, category,
+                    sponsor, cost_description
+                FROM events
+                WHERE event_start_date BETWEEN CURRENT_DATE AND CURRENT_DATE + %s
+                ORDER BY event_start_date, event_start_time
+            """, (days_ahead,))
+            
+            columns = [desc[0] for desc in cur.description]
+            events = []
+            
+            for row in cur.fetchall():
+                event = dict(zip(columns, row))
+                events.append(event)
+            
+            return events
+    finally:
+        conn.close()
+
+
+def get_multi_day_events() -> List[Dict]:
+    """
+    Get all multi-day events.
+    
+    Returns:
+        List of multi-day event dictionaries
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT 
+                    event_id, event_name, venue_name,
+                    event_start_date, event_end_date,
+                    (event_end_date - event_start_date + 1) as duration_days,
+                    category, sponsor
+                FROM events
+                WHERE is_multi_day = TRUE
+                ORDER BY event_start_date
+            """)
+            
+            columns = [desc[0] for desc in cur.description]
+            events = []
+            
+            for row in cur.fetchall():
+                event = dict(zip(columns, row))
+                events.append(event)
+            
+            return events
+    finally:
+        conn.close()
+
+
+def get_events_with_times() -> List[Dict]:
+    """
+    Get events that have start times populated.
+    
+    Returns:
+        List of event dictionaries with times
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT 
+                    event_id, event_name, venue_name,
+                    event_start_date, event_start_time, event_end_time,
+                    category
+                FROM events
+                WHERE event_start_time IS NOT NULL
+                ORDER BY event_start_date, event_start_time
+            """)
+            
+            columns = [desc[0] for desc in cur.description]
+            events = []
+            
+            for row in cur.fetchall():
+                event = dict(zip(columns, row))
+                events.append(event)
+            
+            return events
+    finally:
+        conn.close()
+
+
+def get_events_by_cost_range(min_cost: float = None, max_cost: float = None) -> List[Dict]:
+    """
+    Get events within a cost range.
+    
+    Args:
+        min_cost: Minimum cost filter
+        max_cost: Maximum cost filter
+        
+    Returns:
+        List of event dictionaries
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            query = """
+                SELECT 
+                    event_id, event_name, venue_name,
+                    event_start_date, 
+                    cost_min, cost_max, cost_description,
+                    category
+                FROM events
+                WHERE 1=1
+            """
+            params = []
+            
+            if min_cost is not None:
+                query += " AND cost_min >= %s"
+                params.append(min_cost)
+            
+            if max_cost is not None:
+                query += " AND cost_max <= %s"
+                params.append(max_cost)
+            
+            query += " ORDER BY cost_min, event_start_date"
+            
+            cur.execute(query, params)
+            
+            columns = [desc[0] for desc in cur.description]
+            events = []
+            
+            for row in cur.fetchall():
+                event = dict(zip(columns, row))
+                events.append(event)
+            
+            return events
+    finally:
+        conn.close()
+
+
+def get_free_events() -> List[Dict]:
+    """
+    Get all free events (cost = 0 or 'Free').
+    
+    Returns:
+        List of free event dictionaries
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT 
+                    event_id, event_name, venue_name,
+                    event_start_date, event_start_time,
+                    category, sponsor
+                FROM events
+                WHERE cost_min = 0 
+                   OR cost_description ILIKE '%free%'
+                ORDER BY event_start_date
+            """)
+            
+            columns = [desc[0] for desc in cur.description]
+            events = []
+            
+            for row in cur.fetchall():
+                event = dict(zip(columns, row))
+                events.append(event)
+            
+            return events
+    finally:
+        conn.close()
+
+
+def get_event_statistics() -> Dict:
+    """
+    Get comprehensive event statistics.
+    
+    Returns:
+        Dictionary with various statistics
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            stats = {}
+            
+            # Total events
+            cur.execute("SELECT COUNT(*) FROM events")
+            stats['total_events'] = cur.fetchone()[0]
+            
+            # Multi-day events
+            cur.execute("SELECT COUNT(*) FROM events WHERE is_multi_day = TRUE")
+            stats['multi_day_events'] = cur.fetchone()[0]
+            
+            # Events with times
+            cur.execute("SELECT COUNT(*) FROM events WHERE event_start_time IS NOT NULL")
+            stats['events_with_times'] = cur.fetchone()[0]
+            
+            # Events with cost info
+            cur.execute("SELECT COUNT(*) FROM events WHERE cost_description IS NOT NULL")
+            stats['events_with_cost'] = cur.fetchone()[0]
+            
+            # Free events
+            cur.execute("SELECT COUNT(*) FROM events WHERE cost_min = 0")
+            stats['free_events'] = cur.fetchone()[0]
+            
+            # Events with sponsors
+            cur.execute("SELECT COUNT(*) FROM events WHERE sponsor IS NOT NULL")
+            stats['events_with_sponsors'] = cur.fetchone()[0]
+            
+            # Category breakdown
+            cur.execute("""
+                SELECT category, COUNT(*) as count
+                FROM events
+                GROUP BY category
+                ORDER BY count DESC
+            """)
+            stats['by_category'] = {row[0]: row[1] for row in cur.fetchall()}
+            
+            # Average cost
+            cur.execute("""
+                SELECT 
+                    AVG(cost_min) as avg_min,
+                    AVG(cost_max) as avg_max
+                FROM events
+                WHERE cost_min > 0
+            """)
+            row = cur.fetchone()
+            if row[0]:
+                stats['avg_cost_min'] = round(float(row[0]), 2)
+                stats['avg_cost_max'] = round(float(row[1]), 2)
+            
+            return stats
+    finally:
+        conn.close()
+                
 if __name__ == "__main__":
     """
     Test database utilities when run directly.

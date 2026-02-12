@@ -18,7 +18,7 @@ from typing import List, Dict, Tuple
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-def scrape_events_selenium(url: str = None, max_pages: int = 20, max_wait: int = 10) -> List[Dict]:
+def scrape_events_selenium(url: str = None, max_pages: int = 5, max_wait: int = 10) -> List[Dict]:
     """
     Scrape events using Selenium by clicking "Next" button
     
@@ -170,8 +170,7 @@ def scrape_events_selenium(url: str = None, max_pages: int = 20, max_wait: int =
 
 def parse_selenium_event(element) -> Dict:
     """Parse event from Selenium-rendered HTML"""
-    
-    # Event name
+# Event name
     title_elem = element.find('a', class_='title')
     if not title_elem:
         title_elem = element.find('div', class_='title')
@@ -190,21 +189,31 @@ def parse_selenium_event(element) -> Dict:
     if venue_name:
         venue_name = venue_name.replace('', '').strip()
     
-    # Date
+    # Date - from image-date-block
     date_block = element.find('div', class_='image-date-block')
-    if not date_block:
-        date_block = element.find('span', class_='date')
-    
     date_str = None
+    time_str = None  # ADD THIS
+    
     if date_block:
         date_span = date_block.find('span')
         if date_span:
-            date_str = date_span.get_text(strip=True)
-        else:
-            date_str = date_block.get_text(strip=True)
+            full_text = date_span.get_text(strip=True)
+            # Example: "Feb 11 - Mar 3" or "Feb 11, 7:00 PM"
+            date_str = full_text
+            
+            # Try to extract time if present
+            if 'PM' in full_text or 'AM' in full_text:
+                # Split on comma or dash to separate date from time
+                parts = full_text.replace(' - ', ',').split(',')
+                if len(parts) >= 2:
+                    date_str = parts[0].strip()
+                    time_str = parts[-1].strip()  # Last part is likely time
     
     # Parse date
     event_date = parse_date_simple(date_str) if date_str else None
+    
+    # Parse time 
+    event_time = parse_time_from_string(time_str) if time_str else None
     
     # Category
     category = categorize_event_simple(event_name) if event_name else 'General'
@@ -245,6 +254,71 @@ def parse_date_simple(date_str: str) -> str:
     
     return None
 
+def parse_time_from_string(time_str: str) -> str:
+    """
+    Extract time from string like '7:00 PM' or '7 PM'.
+    
+    Args:
+        time_str: String containing time
+        
+    Returns:
+        Time in HH:MM:SS format or None
+    """
+    if not time_str:
+        return None
+    
+    import re
+    from datetime import datetime
+    
+    # Clean up string
+    time_str = time_str.strip()
+    
+    # Try to find time pattern
+    # Patterns: "7:00 PM", "7 PM", "19:00"
+    patterns = [
+        r'(\d{1,2}):(\d{2})\s*(AM|PM)',  # 7:00 PM
+        r'(\d{1,2})\s*(AM|PM)',           # 7 PM
+        r'(\d{1,2}):(\d{2})',             # 19:00
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, time_str, re.IGNORECASE)
+        if match:
+            try:
+                if len(match.groups()) == 3:  # Has AM/PM
+                    hour = int(match.group(1))
+                    minute = int(match.group(2)) if match.group(2) else 0
+                    period = match.group(3).upper()
+                    
+                    # Convert to 24-hour
+                    if period == 'PM' and hour != 12:
+                        hour += 12
+                    elif period == 'AM' and hour == 12:
+                        hour = 0
+                    
+                    return f"{hour:02d}:{minute:02d}:00"
+                    
+                elif len(match.groups()) == 2 and match.group(2) in ['AM', 'PM']:  # Hour only with AM/PM
+                    hour = int(match.group(1))
+                    period = match.group(2).upper()
+                    
+                    if period == 'PM' and hour != 12:
+                        hour += 12
+                    elif period == 'AM' and hour == 12:
+                        hour = 0
+                    
+                    return f"{hour:02d}:00:00"
+                    
+                else:  # 24-hour format
+                    hour = int(match.group(1))
+                    minute = int(match.group(2))
+                    return f"{hour:02d}:{minute:02d}:00"
+                    
+            except (ValueError, IndexError):
+                continue
+    
+    logger.warning(f"Could not parse time from: {time_str}")
+    return None
 
 def categorize_event_simple(event_name: str) -> str:
     """Simple categorization"""
@@ -280,7 +354,7 @@ if __name__ == "__main__":
     
     # Scrape multiple pages (default 3)
     print("Scraping up to 3 pages of events...")
-    events = scrape_events_selenium(max_pages=20)
+    events = scrape_events_selenium(max_pages=3)
     
     print(f"\nTotal events scraped: {len(events)}")
     print()
