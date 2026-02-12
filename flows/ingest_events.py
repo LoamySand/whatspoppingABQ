@@ -128,6 +128,23 @@ def load_events_task(events: list):
     
     return load_stats
 
+@task(retries=1, retry_delay_seconds=60)
+def geocode_venues_task():
+    """
+    Geocode venues for events that don't have coordinates.
+    
+    Returns:
+        Number of venues geocoded
+    """
+    logger.info("Geocoding venues for new events")
+    
+    from database.db_utils import geocode_and_link_events
+    
+    geocoded_count = geocode_and_link_events()
+    
+    logger.info(f"Geocoded {geocoded_count} venues")
+    
+    return geocoded_count
 
 @task
 def generate_summary_task(load_stats: dict):
@@ -199,7 +216,7 @@ def generate_summary_task(load_stats: dict):
     return summary
 
 
-@flow(name="Enhanced Event Ingestion Pipeline", log_prints=True)
+@flow(name="Event Ingestion Pipeline", log_prints=True)
 def event_ingestion_flow_enhanced(max_pages: int = 3):
     """
     Main Prefect flow for enhanced event ingestion.
@@ -208,7 +225,8 @@ def event_ingestion_flow_enhanced(max_pages: int = 3):
         1. Scrape events with detail extraction
         2. Validate event data
         3. Load to PostgreSQL
-        4. Generate summary statistics
+        4. Geocode venues and link events
+        5. Generate summary statistics
     
     Args:
         max_pages: Number of pages to scrape (default 3)
@@ -227,8 +245,12 @@ def event_ingestion_flow_enhanced(max_pages: int = 3):
     # Task 3: Load
     load_stats = load_events_task(valid_events)
     
-    # Task 4: Summarize
+    # Task 4: Geocode venues
+    geocoded_count = geocode_venues_task()
+    
+    # Task 5: Summarize
     summary = generate_summary_task(load_stats)
+    summary['geocoded_venues'] = geocoded_count
     
     logger.info("Enhanced event ingestion flow complete")
     

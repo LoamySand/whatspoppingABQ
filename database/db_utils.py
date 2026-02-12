@@ -844,7 +844,101 @@ def get_event_statistics() -> Dict:
             return stats
     finally:
         conn.close()
+
+def geocode_and_link_events():
+    """
+    Geocode any events that don't have venue_id assigned.
+    Creates venue_locations entries and links events to them.
+    
+    Returns:
+        Number of events geocoded and linked
+    """
+    from utils.geocoding import geocode_venue
+    
+    conn = get_connection()
+    
+    try:
+        with conn.cursor() as cur:
+            # Get unique venue names from events without venue_id
+            cur.execute("""
+                SELECT DISTINCT venue_name
+                FROM events
+                WHERE venue_id IS NULL
+                  AND venue_name IS NOT NULL
+                  AND venue_name != ''
+            """)
+            
+            venues_to_geocode = [row[0] for row in cur.fetchall()]
+            
+            if not venues_to_geocode:
+                logger.info("All events already linked to venues")
+                return 0
+            
+            logger.info(f"Found {len(venues_to_geocode)} unique venues to geocode")
+            
+            geocoded_count = 0
+            
+            for venue_name in venues_to_geocode:
+                logger.info(f"Processing: {venue_name}")
                 
+                # Check if venue already exists in venue_locations
+                cur.execute("""
+                    SELECT venue_id FROM venue_locations
+                    WHERE venue_name = %s
+                """, (venue_name,))
+                
+                existing = cur.fetchone()
+                
+                if existing:
+                    venue_id = existing[0]
+                    logger.info(f"  Venue already exists in database (ID: {venue_id})")
+                else:
+                    # Geocode the venue
+                    geocode_result = geocode_venue(venue_name, city="Albuquerque", state="NM")
+                    
+                    if geocode_result:
+                        # Insert new venue
+                        venue_id = insert_venue(
+                            venue_name=venue_name,
+                            latitude=geocode_result['latitude'],
+                            longitude=geocode_result['longitude'],
+                            address=geocode_result.get('formatted_address'),
+                            place_id=geocode_result.get('place_id')
+                        )
+                        logger.info(f"  ✓ Geocoded and created venue (ID: {venue_id})")
+                        geocoded_count += 1
+                        
+                        # Rate limiting for geocoding API
+                        import time
+                        time.sleep(0.2)
+                    else:
+                        logger.warning(f"  ✗ Failed to geocode: {venue_name}")
+                        continue
+                
+                # Link all events with this venue_name to the venue_id
+                cur.execute("""
+                    UPDATE events
+                    SET venue_id = %s
+                    WHERE venue_name = %s
+                      AND venue_id IS NULL
+                """, (venue_id, venue_name))
+                
+                linked = cur.rowcount
+                conn.commit()
+                
+                logger.info(f"  Linked {linked} events to venue")
+            
+            logger.info(f"Geocoded {geocoded_count} new venues, reused {len(venues_to_geocode) - geocoded_count} existing venues")
+            
+            return geocoded_count
+            
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Error during geocoding: {e}")
+        raise
+    finally:
+        conn.close()
+
 if __name__ == "__main__":
     """
     Test database utilities when run directly.
@@ -949,6 +1043,4 @@ if __name__ == "__main__":
     print("=" * 60)
     print("All tests complete!")
     print()
-    print("⚠️  Note: Test event 'Test Event - Database Utilities' was added")
-    print("   You can delete it manually or run clear_all_events() if needed")
     print("=" * 60)

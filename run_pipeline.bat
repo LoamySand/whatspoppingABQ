@@ -13,5 +13,5 @@ python flows\ingest_events.py
 
 echo.
 echo ============================================================
-echo Pipeline Complete: %date% %time%
+echo Ingestion Complete: %date% %time%
 echo ============================================================
