@@ -8,7 +8,6 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
@@ -46,15 +45,7 @@ def truncate_field(value: str, max_length: int) -> str:
     return value
 
 def scrape_events_with_details(max_pages: int = 3) -> List[Dict]:
-    """
-    Scrape events by clicking into detail pages for complete information.
-    
-    Args:
-        max_pages: Number of listing pages to scrape
-        
-    Returns:
-        List of detailed event dictionaries
-    """
+    """Scrape events by clicking into detail pages for complete information."""
     # Setup Chrome
     options = Options()
     options.add_argument('--headless')
@@ -95,182 +86,49 @@ def scrape_events_with_details(max_pages: int = 3) -> List[Dict]:
             
             logger.info(f"Found {len(event_urls)} events on page {page_num}")
             
-            # Visit each event detail page in a new tab so the listing stays loaded
-            for i, url in enumerate(event_urls, 1):
-                logger.info(f"  Processing event {i}/{len(event_urls)}")
-
+            # Visit each event detail page
+            for url in event_urls:
                 try:
-                    original_window = driver.current_window_handle
-
-                    # Open a new blank tab and switch to it
-                    driver.execute_script("window.open('');")
-                    new_windows = [h for h in driver.window_handles if h != original_window]
-                    if not new_windows:
-                        logger.error("Could not open new tab for detail page")
-                        continue
-                    new_window = new_windows[-1]
-                    driver.switch_to.window(new_window)
-
-                    # Load the detail page in the new tab and scrape
-                    try:
-                        event = scrape_event_detail(driver, url)
-                        if event:
-                            all_events.append(event)
-                    except Exception as e:
-                        logger.error(f"Error processing {url}: {e}")
-                    finally:
-                        # Close the detail tab and return to the listing
-                        try:
-                            driver.close()
-                        except Exception:
-                            pass
-                        driver.switch_to.window(original_window)
-
+                    event = scrape_event_detail(driver, url)
+                    if event:
+                        all_events.append(event)
                 except Exception as e:
-                    logger.error(f"Error opening detail tab for {url}: {e}")
-                    # Attempt to return to original window if possible
-                    try:
-                        driver.switch_to.window(original_window)
-                    except Exception:
-                        pass
-
-                # Brief delay between events
+                    logger.error(f"Error processing {url}: {e}")
+                
                 time.sleep(0.5)
             
-            # Try to go to next page
+            # Go to next page
             if page_num < max_pages:
                 try:
                     next_button = None
-
-                    # Try a set of CSS selectors first
-                    selectors = [
-                        "a.pagination-next",
-                        "a.next",
-                        "li.next a",
-                        ".pagination-next",
-                        "a[rel='next']",
-                        "a[aria-label='Next']"
-                    ]
-
-                    for sel in selectors:
-                        try:
-                            elems = driver.find_elements(By.CSS_SELECTOR, sel)
-                            if elems:
-                                next_button = elems[0]
-                                logger.info(f"Found next button with selector: {sel}")
-                                break
-                        except Exception:
-                            continue
-
-                    # If CSS selectors didn't work, try XPath searches looking for link/button text
-                    if not next_button:
-                        xpath_selectors = [
-                            "//a[contains(normalize-space(.), 'Next')]",
-                            "//a[contains(., '›') or contains(., '»')]",
-                            "//button[contains(normalize-space(.), 'Next')]",
-                            "//a[contains(@aria-label, 'Next') or contains(@aria-label, 'next')]",
-                            "//a[contains(@rel, 'next')]"
-                        ]
-
-                        for xp in xpath_selectors:
-                            try:
-                                elems = driver.find_elements(By.XPATH, xp)
-                                if elems:
-                                    next_button = elems[0]
-                                    logger.info(f"Found next button with XPath: {xp}")
-                                    break
-                            except Exception:
-                                continue
-
-                    if not next_button:
-                        logger.info("Could not find next button, stopping pagination")
-                        break
-
-                    # Check common disabled attributes
-                    try:
-                        disabled_attr = (next_button.get_attribute('aria-disabled') or next_button.get_attribute('disabled') or '').lower()
-                    except Exception:
-                        disabled_attr = ''
-
-                    classes = (next_button.get_attribute('class') or '').lower()
-                    if 'disabled' in classes or 'inactive' in classes or disabled_attr in ('true', 'disabled'):
-                        logger.info("Next button is disabled, no more pages")
-                        break
-
-                    # Before clicking, capture current URL and first event title (if any)
-                    prev_url = driver.current_url
-                    try:
-                        prev_first = event_links[0].text.strip() if event_links else None
-                    except Exception:
-                        prev_first = None
-
-                    # Click using JavaScript to avoid interception issues
-                    try:
-                        driver.execute_script("arguments[0].click();", next_button)
-
-                        # Wait until either the URL changes or the first listing item changes
-                        def page_changed(drv):
-                            try:
-                                if drv.current_url != prev_url:
-                                    return True
-                                elems = drv.find_elements(By.CSS_SELECTOR, "a.title")
-                                if elems:
-                                    cur_first = elems[0].text.strip()
-                                    if prev_first and cur_first != prev_first:
-                                        return True
-                                return False
-                            except Exception:
-                                return False
-
-                        try:
-                            WebDriverWait(driver, 15).until(page_changed)
-                        except TimeoutException:
-                            logger.warning(f"Timeout waiting for page {page_num+1} to load after clicking next")
-                            logger.info(f"Current URL after click: {driver.current_url}")
-                            # Give one final short pause and then stop pagination to avoid hanging
-                            time.sleep(2)
+                    for selector in ["a.pagination-next", "a.next", "li.next a", ".pagination a.next"]:
+                        elems = driver.find_elements(By.CSS_SELECTOR, selector)
+                        if elems and 'disabled' not in (elems[0].get_attribute('class') or '').lower():
+                            next_button = elems[0]
                             break
-
-                    except Exception as e:
-                        logger.warning(f"Error clicking next button: {e}")
-                        # As a final fallback, try to construct next page URL if pagination exposes a page number
-                        try:
-                            current_url = driver.current_url
-                            # If URL has '?pg=1' or 'page=1', increment it
-                            if 'page=' in current_url or 'pg=' in current_url:
-                                new_url = None
-                                if 'page=' in current_url:
-                                    new_url = re.sub(r'(page=)(\d+)', lambda m: f"{m.group(1)}{int(m.group(2))+1}", current_url)
-                                elif 'pg=' in current_url:
-                                    new_url = re.sub(r'(pg=)(\d+)', lambda m: f"{m.group(1)}{int(m.group(2))+1}", current_url)
-
-                                if new_url and new_url != current_url:
-                                    logger.info(f"Navigating to inferred next page URL: {new_url}")
-                                    driver.get(new_url)
-                                    time.sleep(3)
-                                    continue
-                        except Exception:
-                            pass
+                    
+                    if not next_button:
+                        logger.info("No next button found")
                         break
+                    
+                    driver.execute_script("arguments[0].click();", next_button)
+                    time.sleep(3)
+                    
                 except Exception as e:
-                    logger.warning(f"Error clicking next button: {e}")
+                    logger.warning(f"Error clicking next: {e}")
                     break
         
-        logger.info(f"Total events scraped: {len(all_events)}")
-        
-        # Deduplicate
+        # Deduplicate and return
         seen = set()
-        unique_events = []
+        unique = []
         for event in all_events:
             key = (event.get('event_name'), event.get('event_start_date'), event.get('venue_name'))
             if key not in seen:
                 seen.add(key)
-                unique_events.append(event)
+                unique.append(event)
         
-        if len(unique_events) < len(all_events):
-            logger.info(f"Removed {len(all_events) - len(unique_events)} duplicates")
-        
-        return unique_events
+        logger.info(f"Total events: {len(all_events)}, unique: {len(unique)}")
+        return unique
         
     finally:
         driver.quit()
@@ -278,16 +136,7 @@ def scrape_events_with_details(max_pages: int = 3) -> List[Dict]:
 
 
 def scrape_event_detail(driver, url: str) -> Optional[Dict]:
-    """
-    Scrape detailed information from an event detail page.
-    
-    Args:
-        driver: Selenium WebDriver
-        url: Event detail page URL
-        
-    Returns:
-        Event dictionary with detailed information
-    """
+    """Scrape detailed event information from detail page."""
     try:
         driver.get(url)
         
@@ -410,14 +259,7 @@ def extract_category(detail_list) -> Optional[str]:
     return None
 
 def parse_dates(dates_str: str) -> tuple:
-    """
-    Parse date string into start/end dates.
-    
-    Examples:
-        "February 13, 2026" -> (2026-02-13, 2026-02-13, False)
-        "February 13, 2026, February 14, 2026" -> (2026-02-13, 2026-02-14, True)
-        "Feb 11 - Mar 3" -> (2026-02-11, 2026-03-03, True)
-    """
+    """Parse date string into start/end dates and multi-day flag."""
     if not dates_str:
         return None, None, False
     
@@ -465,7 +307,7 @@ def parse_dates(dates_str: str) -> tuple:
     return start_date, start_date, False
 
 def parse_single_date(date_str: str) -> Optional[str]:
-    """Parse a single date string to YYYY-MM-DD format."""
+    """Parse single date string to YYYY-MM-DD format."""
     if not date_str:
         return None
     
@@ -497,11 +339,7 @@ def parse_single_date(date_str: str) -> Optional[str]:
 
 
 def parse_time_range(time_str: str) -> tuple:
-    """
-    Parse time range string.
-    
-    Example: "7:00 PM to 9:30 PM" -> ("19:00:00", "21:30:00")
-    """
+    """Parse time range string into start/end times."""
     if not time_str:
         return None, None
     
@@ -540,14 +378,7 @@ def parse_single_time(time_str: str) -> Optional[str]:
 
 
 def parse_cost(price_str: str) -> tuple:
-    """
-    Parse cost string.
-    
-    Examples:
-        "$149.95" -> (149.95, 149.95, "$149.95")
-        "Free" -> (0, 0, "Free")
-        "$50-$100" -> (50, 100, "$50-$100")
-    """
+    """Parse cost string into min/max amounts and description."""
     if not price_str:
         return None, None, None
     

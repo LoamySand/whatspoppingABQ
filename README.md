@@ -224,35 +224,37 @@ LIMIT 10;
 ## Project Structure
 ```
 whatspoppingABQ/
-├── database/              # Database schemas and utilities
-│   ├── __init__.py
-│   ├── schema.sql        # PostgreSQL table definitions
-│   ├── db_utils.py       # Database connection & queries
-│   └── README.md         # Database documentation
+├── database/                                   # Database schemas and utilities
+│   ├── schema.sql                              # PostgreSQL table definitions
+│   ├── db_utils.py                             # Database connection & queries
+│   └── README.md                               # Database documentation
 │
-├── scrapers/             # Web scraping modules
-│   ├── __init__.py
-│   └── visit_abq_scraper.py  # Selenium-based scraper
+├── scrapers/                                   # Web scraping modules
+│   └── visit_abq_scraper.py                    # Selenium-based scraper
 │
-├── flows/                # Prefect workflow definitions
-│   ├── __init__.py
-│   └── ingest_events.py  # Main pipeline flow
+├── collectors/                                 # API calls
+│   ├── traffic_collection_rules.py             # Configuration of API calls based on event data
+|   ├── traffic_collector.py                    # Collect traffic_measurement data via API call to Google Maps
+|
+├── flows/                                      # Prefect workflow definitions
+│   └── ingest_events.py                        # Main pipeline flow
 │
-├── docs/                 # Documentation
-│   ├── data_sources.md   # Data source research
-│   ├── deployment.md     # Deployment guide
-│   └── test_results.md   # Test documentation
+├── scripts/                                    # helper scripts meant to be manually run
+│   ├── ..
 │
-├── venv/                 # Virtual environment (not tracked)
+├── utils/                                      # Helper scripts used by scrapers, collectors, and flows
+│   ├── ..
 │
-├── .env                  # Environment variables (not tracked)
-├── .env.example          # Environment template
-├── .gitignore           # Git ignore rules
-├── README.md            # This file
-├── requirements.txt     # Python dependencies
-├── run_pipeline.bat     # Automated execution script
-├── demo_pipeline.py     # Demo script
-└── test_end_to_end.py   # E2E test suite
+├── venv/                                       # Virtual environment (not tracked)
+            
+├── .env                                        # Environment variables (not tracked)
+├── .env.example                                # Environment template
+├── .gitignore                                  # Git ignore rules
+├── README.md                                   # This file
+├── requirements.txt                            # Python dependencies
+├── run_pipeline.bat                            # Automated execution script
+├── demo_pipeline.py                            # Demo script
+└── test_end_to_end.py                          # E2E test suite
 ```
 
 ---
@@ -299,43 +301,52 @@ whatspoppingABQ/
 | Metric | Value |
 |--------|-------|
 | Scraping speed | 24 events/page (~20 sec/page) |
-| Data quality | 100% valid events |
 | Database operations | < 5 seconds |
 | Total pipeline time | ~70 seconds |
-| Success rate | 100% |
 
 ### Sample Data
 
 **Events by Category:**
-- Sports: 15 events (21%)
-- Music: 12 events (17%)
-- Festival: 8 events (11%)
-- Arts & Culture: 7 events (10%)
-- General: 19 events (26%)
+- "Food, Wine & Beer"	47
+- "Art"	18
+- "Live Music & Concerts"	15
+- "Sports/Fitness"	9
+- "Theatre"	9
+- "History & Museums"	7
+- "Holiday & Seasonal"	2
+- "Film & Performing Arts"	2
+- "Festivals"	2
+- "Valentine's Day"	2
+- "Dance"	1
+- "Free Events"	1
+- "Cultural & Heritage"	1
+- "Arts & Crafts"	1
+- "Comedy"	1
+- "Market"	1
 
 ---
 
 ## Future Enhancements
 
 ### Sprint 2: Traffic Data Integration
-- [ ] Integrate Google Maps Traffic API
+- [x] Integrate Google Maps Traffic API
 - [ ] Correlate events with traffic patterns
 - [ ] Store historical traffic data
 
-### Sprint 3: Business Sentiment
+### Sprint 3: Visualization Dashboard
+- [ ] Build interactive dashboard
+- [ ] Visualize event impact metrics
+- [ ] Generate automated reports
+
+### Sprint 4: Business Sentiment
 - [ ] Scrape Yelp reviews for venues
 - [ ] Implement NLP sentiment analysis
 - [ ] Track review volume changes
 
-### Sprint 4: Social Media Analytics
+### Sprint 5: Social Media Analytics
 - [ ] Add Reddit API for community sentiment
 - [ ] Analyze event-related discussions
 - [ ] Track social media engagement
-
-### Sprint 5: Visualization Dashboard
-- [ ] Build interactive dashboard
-- [ ] Visualize event impact metrics
-- [ ] Generate automated reports
 
 ### Sprint 6: Production Deployment
 - [ ] Containerize with Docker

@@ -99,10 +99,8 @@ def scrape_events_selenium(url: str = None, max_pages: int = 5, max_wait: int = 
             
             # Try to find and click "Next" button
             try:
-                # Try multiple selectors for next button
                 next_button = None
                 
-                # Try common next button selectors
                 selectors = [
                     "a.next",
                     "li.next a",
@@ -132,7 +130,7 @@ def scrape_events_selenium(url: str = None, max_pages: int = 5, max_wait: int = 
                     logger.info("Next button is disabled, no more pages")
                     break
                 
-                # Click using JavaScript (avoids "element intercepted" errors)
+                # Click using JavaScript
                 logger.info("Clicking next button...")
                 driver.execute_script("arguments[0].click();", next_button)
                 
@@ -170,7 +168,7 @@ def scrape_events_selenium(url: str = None, max_pages: int = 5, max_wait: int = 
 
 def parse_selenium_event(element) -> Dict:
     """Parse event from Selenium-rendered HTML"""
-# Event name
+    # Event name
     title_elem = element.find('a', class_='title')
     if not title_elem:
         title_elem = element.find('div', class_='title')
@@ -274,18 +272,17 @@ def parse_time_from_string(time_str: str) -> str:
     time_str = time_str.strip()
     
     # Try to find time pattern
-    # Patterns: "7:00 PM", "7 PM", "19:00"
     patterns = [
-        r'(\d{1,2}):(\d{2})\s*(AM|PM)',  # 7:00 PM
-        r'(\d{1,2})\s*(AM|PM)',           # 7 PM
-        r'(\d{1,2}):(\d{2})',             # 19:00
+        r'(\d{1,2}):(\d{2})\s*(AM|PM)',
+        r'(\d{1,2})\s*(AM|PM)',
+        r'(\d{1,2}):(\d{2})',
     ]
     
     for pattern in patterns:
         match = re.search(pattern, time_str, re.IGNORECASE)
         if match:
             try:
-                if len(match.groups()) == 3:  # Has AM/PM
+                if len(match.groups()) == 3:
                     hour = int(match.group(1))
                     minute = int(match.group(2)) if match.group(2) else 0
                     period = match.group(3).upper()
@@ -298,7 +295,7 @@ def parse_time_from_string(time_str: str) -> str:
                     
                     return f"{hour:02d}:{minute:02d}:00"
                     
-                elif len(match.groups()) == 2 and match.group(2) in ['AM', 'PM']:  # Hour only with AM/PM
+                elif len(match.groups()) == 2 and match.group(2) in ['AM', 'PM']:
                     hour = int(match.group(1))
                     period = match.group(2).upper()
                     
@@ -309,7 +306,7 @@ def parse_time_from_string(time_str: str) -> str:
                     
                     return f"{hour:02d}:00:00"
                     
-                else:  # 24-hour format
+                else:
                     hour = int(match.group(1))
                     minute = int(match.group(2))
                     return f"{hour:02d}:{minute:02d}:00"
@@ -352,7 +349,7 @@ if __name__ == "__main__":
     print("=" * 60)
     print()
     
-    # Scrape multiple pages (default 3)
+    # Scrape pages (default 3)
     print("Scraping up to 3 pages of events...")
     events = scrape_events_selenium(max_pages=3)
     
