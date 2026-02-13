@@ -4,6 +4,16 @@ Collects traffic before/after events based on event type and timing.
 """
 
 import sys
+import sys
+import os
+
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+env_path = os.path.join(project_root, '.env')
+
+from dotenv import load_dotenv
+load_dotenv(env_path)
+
+from database.db_utils import get_connection, insert_traffic_measurement
 sys.path.append('C:\\Users\\lanee\\Desktop\\whatspoppingABQ')
 
 from database.db_utils import get_connection, insert_traffic_measurement
@@ -75,7 +85,6 @@ def get_events_needing_collection(window_hours: int = 2) -> list:
     finally:
         conn.close()
 
-
 def should_collect_now(event: dict, collection_plan: dict) -> dict:
     """
     Determine if we should collect traffic now for this event.
@@ -99,34 +108,46 @@ def should_collect_now(event: dict, collection_plan: dict) -> dict:
         event['event_start_time']
     )
     
+    # Calculate time difference in hours
+    time_until_event = (event_datetime - now).total_seconds() / 3600  # hours
+    
     # Calculate collection windows
-    before_window_start = event_datetime - timedelta(hours=collection_plan['hours_before'] + 0.5)
-    before_window_end = event_datetime - timedelta(hours=collection_plan['hours_before'] - 0.5)
+    # Before: collect when 0.5 to 1.5 hours before event
+    # After: collect when 0.5 to 1.5 hours after event
     
-    after_window_start = event_datetime + timedelta(hours=collection_plan.get('hours_after', 0) - 0.5)
-    after_window_end = event_datetime + timedelta(hours=collection_plan.get('hours_after', 0) + 0.5)
+    # Check if we're in the "before" window (30 min to 90 min before event)
+    if collection_plan['collect_before']:
+        hours_before = collection_plan['hours_before']
+        
+        # Window: 30 min before target time to 30 min after target time
+        # Target time is "hours_before" before the event
+        # So if event is at 16:19 and we want to collect 1hr before (15:19)
+        # Window is 14:49 to 15:49
+        
+        if 0.5 <= time_until_event <= 1.5:  # 30-90 min before event
+            return {
+                'collect': True,
+                'window': 'before',
+                'event_time': event_datetime,
+                'time_until_event': time_until_event,
+                'reason': f"In before-event window ({time_until_event*60:.0f} min before event at {event_datetime.strftime('%H:%M')})"
+            }
     
-    # Check if we're in the "before" window
-    if collection_plan['collect_before'] and before_window_start <= now <= before_window_end:
-        return {
-            'collect': True,
-            'window': 'before',
-            'event_time': event_datetime,
-            'reason': f"In before-event window (1hr before event at {event_datetime.strftime('%H:%M')})"
-        }
-    
-    # Check if we're in the "after" window
-    if collection_plan.get('collect_after') and after_window_start <= now <= after_window_end:
-        return {
-            'collect': True,
-            'window': 'after',
-            'event_time': event_datetime,
-            'reason': f"In after-event window (1hr after event at {event_datetime.strftime('%H:%M')})"
-        }
+    # Check if we're in the "after" window (30-90 min after event)
+    if collection_plan.get('collect_after'):
+        # time_until_event will be negative after the event
+        if -1.5 <= time_until_event <= -0.5:  # 30-90 min after event
+            return {
+                'collect': True,
+                'window': 'after',
+                'event_time': event_datetime,
+                'time_until_event': time_until_event,
+                'reason': f"In after-event window ({abs(time_until_event)*60:.0f} min after event at {event_datetime.strftime('%H:%M')})"
+            }
     
     return {
         'collect': False,
-        'reason': f"Outside collection windows (event at {event_datetime.strftime('%H:%M')})"
+        'reason': f"Outside collection windows ({time_until_event*60:.0f} min from event at {event_datetime.strftime('%H:%M')})"
     }
 
 
