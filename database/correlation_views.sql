@@ -71,11 +71,11 @@ CREATE OR REPLACE VIEW category_traffic_impact AS
 SELECT 
     category,
     COUNT(DISTINCT event_id) AS event_count,
-    AVG(avg_delay_during - avg_delay_before) AS avg_impact_minutes,
-    MAX(avg_delay_during - avg_delay_before) AS max_impact_minutes
+    AVG(avg_delay_after - avg_delay_before) AS avg_impact_minutes,
+    MAX(avg_delay_after - avg_delay_before) AS max_impact_minutes
 FROM event_impact_summary
 WHERE avg_delay_before IS NOT NULL 
-  AND avg_delay_during IS NOT NULL
+  AND avg_delay_after IS NOT NULL
 GROUP BY category
 ORDER BY avg_impact_minutes DESC;
 

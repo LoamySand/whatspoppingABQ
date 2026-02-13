@@ -1,20 +1,11 @@
 """
-Smart traffic collector for events based on collection rules.
-Collects traffic before/after events based on event type and timing.
+Enhanced event traffic collector with 30-minute intervals.
+Collects traffic every 30 minutes from 2 hours before to 2 hours after events.
 """
 
 import sys
-import sys
 import os
-
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-env_path = os.path.join(project_root, '.env')
-
-from dotenv import load_dotenv
-load_dotenv(env_path)
-
-from database.db_utils import get_connection, insert_traffic_measurement
-sys.path.append('C:\\Users\\lanee\\Desktop\\whatspoppingABQ')
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from database.db_utils import get_connection, insert_traffic_measurement
 from collectors.traffic_collector import measure_traffic, generate_points_around_location
@@ -27,12 +18,12 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def get_events_needing_collection(window_hours: int = 2) -> list:
+def get_events_needing_collection(window_minutes: int = 30) -> list:
     """
-    Get events that need traffic collection in the next N hours.
+    Get events that need traffic collection in the next N minutes.
     
     Args:
-        window_hours: Look ahead window (default 2 hours)
+        window_minutes: Look ahead window (default 30 minutes)
         
     Returns:
         List of event dictionaries with venue info
@@ -41,15 +32,12 @@ def get_events_needing_collection(window_hours: int = 2) -> list:
     
     try:
         with conn.cursor() as cur:
-            # Get events happening soon with venue coordinates
             cur.execute("""
                 SELECT 
                     e.event_id,
                     e.event_name,
                     e.event_start_date,
                     e.event_start_time,
-                    e.event_end_date,
-                    e.is_multi_day,
                     e.category,
                     v.venue_id,
                     v.venue_name,
@@ -60,10 +48,10 @@ def get_events_needing_collection(window_hours: int = 2) -> list:
                 WHERE e.event_start_date = CURRENT_DATE
                   AND e.event_start_time IS NOT NULL
                   AND e.event_start_time BETWEEN 
-                      CURRENT_TIME AND 
-                      CURRENT_TIME + INTERVAL '%s hours'
+                      CURRENT_TIME - INTERVAL '2 hours' AND 
+                      CURRENT_TIME + INTERVAL '2 hours %s minutes'
                 ORDER BY e.event_start_time
-            """ % window_hours)
+            """ % window_minutes)
             
             events = []
             for row in cur.fetchall():
@@ -72,100 +60,83 @@ def get_events_needing_collection(window_hours: int = 2) -> list:
                     'event_name': row[1],
                     'event_start_date': row[2],
                     'event_start_time': row[3],
-                    'event_end_date': row[4],
-                    'is_multi_day': row[5],
-                    'category': row[6],
-                    'venue_id': row[7],
-                    'venue_name': row[8],
-                    'latitude': float(row[9]),
-                    'longitude': float(row[10])
+                    'category': row[4],
+                    'venue_id': row[5],
+                    'venue_name': row[6],
+                    'latitude': float(row[7]),
+                    'longitude': float(row[8])
                 })
             
             return events
     finally:
         conn.close()
 
-def should_collect_now(event: dict, collection_plan: dict) -> dict:
+
+def should_collect_now_enhanced(event: dict) -> dict:
     """
     Determine if we should collect traffic now for this event.
+    Collects every 30 minutes from 2hr before to 2hr after.
     
     Args:
         event: Event dictionary
-        collection_plan: Collection plan from get_collection_plan()
         
     Returns:
-        Dictionary with collection decision and type
+        Dictionary with collection decision
     """
-    if not collection_plan.get('collect'):
-        return {'collect': False, 'reason': 'Event skipped by plan'}
-    
-    # Get current time
     now = datetime.now()
     
-    # Calculate event datetime
     event_datetime = datetime.combine(
         event['event_start_date'],
         event['event_start_time']
     )
     
-    # Calculate time difference in hours
-    time_until_event = (event_datetime - now).total_seconds() / 3600  # hours
+    # Calculate time difference in minutes
+    time_diff_minutes = (event_datetime - now).total_seconds() / 60
     
-    # Calculate collection windows
-    # Before: collect when 0.5 to 1.5 hours before event
-    # After: collect when 0.5 to 1.5 hours after event
+    # We want to collect at: -120, -90, -60, -30, 0, +30, +60, +90, +120 minutes
+    # Check if we're within ±15 minutes of any collection point
     
-    # Check if we're in the "before" window (30 min to 90 min before event)
-    if collection_plan['collect_before']:
-        hours_before = collection_plan['hours_before']
-        
-        # Window: 30 min before target time to 30 min after target time
-        # Target time is "hours_before" before the event
-        # So if event is at 16:19 and we want to collect 1hr before (15:19)
-        # Window is 14:49 to 15:49
-        
-        if 0.5 <= time_until_event <= 1.5:  # 30-90 min before event
+    collection_points = [-120, -90, -60, -30, 0, 30, 60, 90, 120]
+    
+    for target_minutes in collection_points:
+        # If we're within 15 minutes of this collection point
+        if abs(time_diff_minutes - target_minutes) <= 15:
+            
+            # Determine window type
+            if target_minutes < -15:
+                window = 'before'
+            elif target_minutes > 15:
+                window = 'after'
+            else:
+                window = 'during'
+            
             return {
                 'collect': True,
-                'window': 'before',
+                'window': window,
+                'collection_point': target_minutes,
                 'event_time': event_datetime,
-                'time_until_event': time_until_event,
-                'reason': f"In before-event window ({time_until_event*60:.0f} min before event at {event_datetime.strftime('%H:%M')})"
-            }
-    
-    # Check if we're in the "after" window (30-90 min after event)
-    if collection_plan.get('collect_after'):
-        # time_until_event will be negative after the event
-        if -1.5 <= time_until_event <= -0.5:  # 30-90 min after event
-            return {
-                'collect': True,
-                'window': 'after',
-                'event_time': event_datetime,
-                'time_until_event': time_until_event,
-                'reason': f"In after-event window ({abs(time_until_event)*60:.0f} min after event at {event_datetime.strftime('%H:%M')})"
+                'reason': f"Collection point at {target_minutes} min from event ({window})"
             }
     
     return {
         'collect': False,
-        'reason': f"Outside collection windows ({time_until_event*60:.0f} min from event at {event_datetime.strftime('%H:%M')})"
+        'reason': f"Not at a collection point (event in {time_diff_minutes:.0f} min)"
     }
 
 
-def collect_traffic_for_event(event: dict, collection_plan: dict) -> int:
+def collect_traffic_for_event_enhanced(event: dict, num_directions: int = 2) -> int:
     """
-    Collect traffic measurements for an event based on plan.
+    Collect traffic measurements for an event.
     
     Args:
         event: Event dictionary with venue info
-        collection_plan: Collection plan dictionary
+        num_directions: Number of directions to sample (default 2)
         
     Returns:
         Number of measurements collected
     """
     logger.info(f"Collecting traffic for: {event['event_name']}")
     logger.info(f"  Category: {event['category']}")
-    logger.info(f"  Type: {collection_plan['type']}")
-    logger.info(f"  Directions: {collection_plan['num_directions']}")
     
     # Generate sample points
     all_points = generate_points_around_location(
@@ -175,18 +146,14 @@ def collect_traffic_for_event(event: dict, collection_plan: dict) -> int:
         num_points=4
     )
     
-    # Filter to selected directions
-    selected_points = [
-        p for p in all_points 
-        if p['direction'] in collection_plan['directions']
-    ]
+    # Use North and South directions
+    selected_points = [p for p in all_points if p['direction'] in ['North', 'South']][:num_directions]
     
-    logger.info(f"  Sampling {len(selected_points)} directions: {', '.join([p['direction'] for p in selected_points])}")
+    logger.info(f"  Sampling {len(selected_points)} directions")
     
     measurements_collected = 0
     
     for point in selected_points:
-        # Measure traffic
         measurement = measure_traffic(
             origin_lat=point['lat'],
             origin_lng=point['lng'],
@@ -195,10 +162,9 @@ def collect_traffic_for_event(event: dict, collection_plan: dict) -> int:
         )
         
         if measurement:
-            # Add event context
             measurement['venue_id'] = event['venue_id']
+            measurement['is_baseline'] = False
             
-            # Insert to database
             try:
                 insert_traffic_measurement(
                     venue_id=event['venue_id'],
@@ -209,18 +175,17 @@ def collect_traffic_for_event(event: dict, collection_plan: dict) -> int:
             except Exception as e:
                 logger.error(f"Error inserting measurement: {e}")
         
-        # Rate limiting
         sleep(0.5)
     
-    logger.info(f"✓ Collected {measurements_collected} measurements for {event['event_name']}")
+    logger.info(f"✓ Collected {measurements_collected} measurements")
     
     return measurements_collected
 
 
 def run_scheduled_collection(max_calls: int = 50):
     """
-    Main function to run scheduled traffic collection.
-    Checks for upcoming events and collects traffic based on rules.
+    Main function for scheduled event traffic collection.
+    Runs every 30 minutes to collect high-frequency event traffic.
     
     Args:
         max_calls: Maximum API calls to make in this run
@@ -229,13 +194,13 @@ def run_scheduled_collection(max_calls: int = 50):
         Dictionary with collection statistics
     """
     logger.info("=" * 70)
-    logger.info("Starting Scheduled Traffic Collection")
+    logger.info("Enhanced Event Traffic Collection (30-min intervals)")
     logger.info("=" * 70)
     
-    # Get events in next 2 hours
-    events = get_events_needing_collection(window_hours=2)
+    # Get events in collection window
+    events = get_events_needing_collection(window_minutes=30)
     
-    logger.info(f"Found {len(events)} events in next 2 hours")
+    logger.info(f"Found {len(events)} events in collection window")
     
     if not events:
         logger.info("No events need collection at this time")
@@ -251,11 +216,8 @@ def run_scheduled_collection(max_calls: int = 50):
     api_calls_made = 0
     
     for event in events:
-        # Get collection plan
-        collection_plan = get_collection_plan(event)
-        
         # Check if we should collect now
-        decision = should_collect_now(event, collection_plan)
+        decision = should_collect_now_enhanced(event)
         
         logger.info(f"\nEvent: {event['event_name']}")
         logger.info(f"  Start time: {event['event_start_time']}")
@@ -264,15 +226,16 @@ def run_scheduled_collection(max_calls: int = 50):
         if not decision['collect']:
             continue
         
-        logger.info(f"  Collection window: {decision['window']}")
+        logger.info(f"  Collection point: {decision['collection_point']} min")
+        logger.info(f"  Window: {decision['window']}")
         
-        # Check if we've hit the call limit
+        # Check API limit
         if api_calls_made >= max_calls:
             logger.warning(f"Reached max API calls ({max_calls}), stopping")
             break
         
         # Collect traffic
-        measurements = collect_traffic_for_event(event, collection_plan)
+        measurements = collect_traffic_for_event_enhanced(event, num_directions=2)
         
         total_measurements += measurements
         api_calls_made += measurements
@@ -299,14 +262,14 @@ def run_scheduled_collection(max_calls: int = 50):
 
 if __name__ == "__main__":
     """
-    Test the event traffic collector
+    Test enhanced event collection
     """
     print("=" * 70)
-    print("Event Traffic Collector - Test Run")
+    print("Enhanced Event Traffic Collector Test")
     print("=" * 70)
     print()
     
-    stats = run_scheduled_collection(max_calls=20)
+    stats = run_enhanced_event_collection(max_calls=20)
     
     print()
     print("Test complete!")

@@ -263,68 +263,31 @@ whatspoppingABQ/
 
 ### Data Flow
 
-1. **Scraping** (60 seconds for 3 pages)
+1. **Scraping** 
    - Selenium launches headless Chrome
    - Navigates to Visit Albuquerque events page
    - Clicks "Next" to paginate through results
    - Extracts: event name, venue, date, category
 
-2. **Validation** (< 1 second)
+2. **Collecting**
+   - Prefect Flow triggers DB query for upcoming 
+2. **Validation**
    - Checks required fields (name, date)
    - Validates date formats (YYYY-MM-DD)
    - Filters out invalid/incomplete events
 
-3. **Loading** (< 5 seconds)
+3. **Loading** 
    - Inserts events into PostgreSQL
    - Uses `ON CONFLICT` for upsert logic
    - No duplicates created
    - Indexes ensure fast queries
 
-4. **Reporting** (< 1 second)
+4. **Reporting**
    - Counts events by category
    - Logs summary statistics
    - Reports new vs. updated events
 
-**Total Execution Time:** ~70 seconds for 72 events
-
-## Results
-
-### Sprint 1 Achievements
-
--**150+ events** loaded into database
--**7 categories** identified (Sports, Music, Festival, etc.)
--**0 duplicates** - upsert logic working
--**Automated scheduling** - runs daily without intervention
-
-### Performance Metrics
-
-| Metric | Value |
-|--------|-------|
-| Scraping speed | 24 events/page (~20 sec/page) |
-| Database operations | < 5 seconds |
-| Total pipeline time | ~70 seconds |
-
-### Sample Data
-
-**Events by Category:**
-- "Food, Wine & Beer"	47
-- "Art"	18
-- "Live Music & Concerts"	15
-- "Sports/Fitness"	9
-- "Theatre"	9
-- "History & Museums"	7
-- "Holiday & Seasonal"	2
-- "Film & Performing Arts"	2
-- "Festivals"	2
-- "Valentine's Day"	2
-- "Dance"	1
-- "Free Events"	1
-- "Cultural & Heritage"	1
-- "Arts & Crafts"	1
-- "Comedy"	1
-- "Market"	1
-
----
+--- 
 
 ## Future Enhancements
 
@@ -334,7 +297,7 @@ whatspoppingABQ/
 - ~~[ ] Store historical traffic data~~ moved to backlog
 
 ### Sprint 3: Visualization Dashboard
-- [ ] Build interactive dashboard
+- [X] Build interactive dashboard
 - [ ] Visualize event impact metrics
 - [ ] Generate automated reports
 

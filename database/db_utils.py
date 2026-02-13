@@ -939,6 +939,58 @@ def geocode_and_link_events():
     finally:
         conn.close()
 
+def get_sqlalchemy_engine():
+    """
+    Get SQLAlchemy engine for pandas compatibility.
+    
+    Returns:
+        SQLAlchemy engine
+    """
+    from sqlalchemy import create_engine
+    
+    password = os.getenv('DB_PASSWORD')
+    
+    connection_string = (
+        f"postgresql://{DB_CONFIG['user']}:{password}@"
+        f"{DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['database']}"
+    )
+    
+    engine = create_engine(connection_string)
+    
+    return engine
+
+def query_to_dataframe(query: str):
+    """
+    Execute query and return as pandas DataFrame.
+    
+    Args:
+        query: SQL query string
+        
+    Returns:
+        pandas DataFrame
+    """
+    import pandas as pd
+    
+    conn = get_connection()
+    
+    try:
+        with conn.cursor() as cur:
+            cur.execute(query)
+            
+            # Get column names
+            columns = [desc[0] for desc in cur.description]
+            
+            # Fetch all rows
+            rows = cur.fetchall()
+            
+            # Create DataFrame
+            df = pd.DataFrame(rows, columns=columns)
+            
+            return df
+            
+    finally:
+        conn.close()
+        
 if __name__ == "__main__":
     """
     Test database utilities when run directly.
