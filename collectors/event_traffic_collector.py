@@ -269,7 +269,7 @@ if __name__ == "__main__":
     print("=" * 70)
     print()
     
-    stats = run_enhanced_event_collection(max_calls=20)
+    stats = run_scheduled_collection(max_calls=20)
     
     print()
     print("Test complete!")

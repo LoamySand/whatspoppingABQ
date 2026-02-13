@@ -14,11 +14,11 @@ print("=" * 70)
 print()
 
 # Baseline collection
-if 1 <= day <= 7:
-    print("✓ BASELINE COLLECTION ACTIVE - Week 1 (Group 1)")
+if 8 <= day <= 14:
+    print("✓ BASELINE COLLECTION ACTIVE - Week 2 (Group 1)")
     print(f"  Collecting for ~40 venues (first half)")
-elif 15 <= day <= 21:
-    print("✓ BASELINE COLLECTION ACTIVE - Week 3 (Group 2)")
+elif 22 <= day <= 31:
+    print("✓ BASELINE COLLECTION ACTIVE - Week 4 (Group 2)")
     print(f"  Collecting for ~40 venues (second half)")
 else:
     print("○ Baseline collection inactive (Week 2 or Week 4)")

@@ -81,8 +81,8 @@ def get_current_baseline_group():
     """
     Determine which venue group should be collected this week.
     
-    Week 1 of month (days 1-7): Group 1
-    Week 3 of month (days 15-21): Group 2
+    Week 2 of month (days 8-14): Group 1
+    Week 3 of month (days 22-30): Group 2
     Other weeks: None
     
     Returns:
@@ -91,11 +91,11 @@ def get_current_baseline_group():
     now = datetime.now()
     day_of_month = now.day
     
-    # Week 1: Days 1-7
-    if 1 <= day_of_month <= 7:
+    # Week 2: Days 8-14
+    if 8 <= day_of_month <= 14:
         return 1
-    # Week 3: Days 15-21
-    elif 15 <= day_of_month <= 21:
+    # Week 3: Days 22-30
+    elif 22 <= day_of_month <= 30:
         return 2
     else:
         return None
