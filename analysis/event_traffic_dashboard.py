@@ -200,12 +200,17 @@ try:
     st.subheader("Event Locations & Traffic Impact")
     
     # Create map with Plotly
+    # Ensure marker sizes are non-negative (Plotly requires size >= 0)
+    map_df = filtered_df.copy()
+    # Replace NaN and negative impact values with 0 for marker sizing
+    map_df['map_size'] = map_df['impact_minutes'].fillna(0).clip(lower=0)
+
     fig_map = px.scatter_mapbox(
-        filtered_df,
+        map_df,
         lat='latitude',
         lon='longitude',
         color='impact_minutes',
-        size='impact_minutes',
+        size='map_size',
         hover_name='event_name',
         hover_data=['venue_name', 'category', 'impact_minutes'],
         color_continuous_scale='RdYlGn_r',
