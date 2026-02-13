@@ -330,8 +330,8 @@ whatspoppingABQ/
 
 ### Sprint 2: Traffic Data Integration
 - [x] Integrate Google Maps Traffic API
-- [ ] Correlate events with traffic patterns
-- [ ] Store historical traffic data
+- [x] Correlate events with traffic patterns
+- ~~[ ] Store historical traffic data~~ moved to backlog
 
 ### Sprint 3: Visualization Dashboard
 - [ ] Build interactive dashboard

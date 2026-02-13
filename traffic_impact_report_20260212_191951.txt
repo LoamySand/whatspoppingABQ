@@ -1,0 +1,48 @@
+EVENT TRAFFIC IMPACT REPORT
+Generated: 2026-02-12 19:19:51
+======================================================================
+
+Total events analyzed: 21
+
+Impact Levels:
+  moderate: 7
+  severe: 1
+  high: 5
+  low: 3
+  no impact: 5
+
+Category Average Impact:
+  Comedy: +2.00 min
+  Art: +1.67 min
+  Festivals: +6.00 min
+  Film & Performing Arts: +2.50 min
+  Dance: +1.50 min
+  Live Music & Concerts: +3.00 min
+  Theatre: +0.75 min
+  Food, Wine & Beer: +0.10 min
+  Holiday & Seasonal: +2.00 min
+  Sports/Fitness: +4.50 min
+  Valentine's Day: +0.00 min
+  Sports: +0.00 min
+
+Top Impact Events:
+1. Glow Up Expo - Festivals
+   Impact: +6.0 min
+2. UNM Lady Lobos vs. Air Force - Sports/Fitness
+   Impact: +4.5 min
+3. Sandia Soundscapes presents Celloquacious plus Meridian Alpha - Live Music & Concerts
+   Impact: +3.5 min
+4. The TEN Tenors 30th Anniversary World Tour - Live Music & Concerts
+   Impact: +3.0 min
+5. DED ASSSS IMPROV SHOW - Film & Performing Arts
+   Impact: +2.5 min
+6. Opera Southwest: Aida - Live Music & Concerts
+   Impact: +2.5 min
+7. Albuquerque Funny Fiesta Presents Headliner Marc Maron! - Comedy
+   Impact: +2.0 min
+8. Connecting Mosaic Artists: Building Community Conference - Art
+   Impact: +2.0 min
+9. Chinese New Year Extravaganza - Year of the Fire Horse - Holiday & Seasonal
+   Impact: +2.0 min
+10. Contra Dance - Dance
+   Impact: +1.5 min

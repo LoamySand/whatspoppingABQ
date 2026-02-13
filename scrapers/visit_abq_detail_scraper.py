@@ -326,11 +326,7 @@ def parse_single_date(date_str: str) -> Optional[str]:
             
             # Add year if not in format
             if '%Y' not in fmt:
-                dt = dt.replace(year=current_year)
-                # If date is in past, assume next year
-                if dt < datetime.now():
-                    dt = dt.replace(year=current_year + 1)
-            
+                dt = dt.replace(year=current_year)            
             return dt.strftime('%Y-%m-%d')
         except ValueError:
             continue
