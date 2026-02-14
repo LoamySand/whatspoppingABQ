@@ -26,7 +26,7 @@ print("-" * 70)
 
 venues = get_all_venues()
 
-print(f" Found {len(venues)} venues")
+print(f"✓ Found {len(venues)} venues")
 print()
 
 if not venues:
@@ -78,7 +78,7 @@ for i, venue in enumerate(venues, 1):
             except Exception as e:
                 logger.error(f"Error inserting measurement: {e}")
         
-        print(f" Inserted {len(measurements)} measurements")
+        print(f"✓ Inserted {len(measurements)} measurements")
         
         # Rate limiting (avoid hitting API limits)
         if i < len(venues):
@@ -126,5 +126,5 @@ finally:
 
 print()
 print("=" * 70)
-print("Traffic Collection Complete! ")
+print("Traffic Collection Complete! ✅")
 print("=" * 70)

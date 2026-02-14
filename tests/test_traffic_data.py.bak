@@ -1,0 +1,140 @@
+"""
+Check what traffic data we have and why correlation might not work
+"""
+
+import sys
+sys.path.append('C:\\Users\\lanee\\Desktop\\whatspoppingABQ')
+
+from database.db_utils import get_connection
+from datetime import datetime
+
+print("=" * 70)
+print("Traffic Data Diagnostic")
+print("=" * 70)
+print()
+
+conn = get_connection()
+
+try:
+    with conn.cursor() as cur:
+        # Total measurements
+        cur.execute("SELECT COUNT(*) FROM traffic_measurements")
+        total = cur.fetchone()[0]
+        print(f"Total traffic measurements: {total}")
+        print()
+        
+        # Measurements by venue
+        cur.execute("""
+            SELECT 
+                v.venue_name,
+                COUNT(tm.measurement_id) as count,
+                MIN(tm.measurement_time) as first,
+                MAX(tm.measurement_time) as last
+            FROM venue_locations v
+            JOIN traffic_measurements tm ON v.venue_id = tm.venue_id
+            GROUP BY v.venue_id, v.venue_name
+            ORDER BY count DESC
+        """)
+        
+        print("Measurements by venue:")
+        print("-" * 70)
+        for row in cur.fetchall():
+            venue, count, first, last = row
+            print(f"{venue}: {count} measurements")
+            print(f"  First: {first}")
+            print(f"  Last: {last}")
+            print()
+        
+        # Events with times today/tomorrow
+        cur.execute("""
+            SELECT 
+                event_name,
+                event_start_date,
+                event_start_time,
+                v.venue_name,
+                category
+            FROM events e
+            JOIN venue_locations v ON e.venue_id = v.venue_id
+            WHERE event_start_date BETWEEN CURRENT_DATE AND CURRENT_DATE + 1
+              AND event_start_time IS NOT NULL
+            ORDER BY event_start_date, event_start_time
+        """)
+        
+        print("Events with times (today/tomorrow):")
+        print("-" * 70)
+        rows = cur.fetchall()
+        if rows:
+            for row in rows:
+                name, date, time, venue, cat = row
+                print(f"{name}")
+                print(f"  {date} at {time}")
+                print(f"  {venue} - {cat}")
+                print()
+        else:
+            print("No events with times found!")
+            print()
+        
+        # Check correlation data availability
+        print("Correlation data check:")
+        print("-" * 70)
+        
+        cur.execute("""
+            SELECT 
+                e.event_name,
+                e.event_start_date,
+                e.event_start_time,
+                v.venue_name,
+                COUNT(tm.measurement_id) as measurements,
+                COUNT(CASE 
+                    WHEN tm.measurement_time < (e.event_start_date + e.event_start_time)
+                    THEN 1 
+                END) as before_count,
+                COUNT(CASE 
+                    WHEN tm.measurement_time >= (e.event_start_date + e.event_start_time)
+                    THEN 1 
+                END) as after_count
+            FROM events e
+            JOIN venue_locations v ON e.venue_id = v.venue_id
+            LEFT JOIN traffic_measurements tm ON v.venue_id = tm.venue_id
+            WHERE e.event_start_time IS NOT NULL
+              AND tm.measurement_time BETWEEN 
+                  (e.event_start_date + e.event_start_time - INTERVAL '2 hours') AND
+                  (e.event_start_date + e.event_start_time + INTERVAL '2 hours')
+            GROUP BY e.event_id, e.event_name, e.event_start_date, e.event_start_time, v.venue_name
+        """)
+        
+        events_with_data = cur.fetchall()
+        
+        if events_with_data:
+            print(f"Found {len(events_with_data)} events with traffic data:")
+            print()
+            for row in events_with_data:
+                name, date, time, venue, total_m, before, after = row
+                print(f"{name}")
+                print(f"  Date/Time: {date} at {time}")
+                print(f"  Venue: {venue}")
+                print(f"  Measurements: {total_m} total ({before} before, {after} after)")
+                
+                # Check if we can calculate impact
+                if before > 0 and after > 0:
+                    print(f"  ✓ Can calculate impact (has before AND after data)")
+                elif before > 0:
+                    print(f"  ⚠ Only has BEFORE data (event hasn't happened yet?)")
+                elif after > 0:
+                    print(f"  ⚠ Only has AFTER data (missed before window?)")
+                else:
+                    print(f"  ✗ Cannot calculate impact (no data)")
+                print()
+        else:
+            print("No events have traffic data within ±2 hours of event time")
+            print()
+            print("Possible reasons:")
+            print("  - Events haven't happened yet (only 'before' data)")
+            print("  - Collection missed the event windows")
+            print("  - Events are too far in past/future")
+
+finally:
+    conn.close()
+
+print()
+print("=" * 70)

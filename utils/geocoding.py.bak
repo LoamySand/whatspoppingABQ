@@ -73,7 +73,7 @@ def geocode_venue(venue_name: str, city: str = "Albuquerque",
             'place_id': result['place_id']
         }
         
-        logger.info(f" Geocoded: {venue_name} → ({location['lat']}, {location['lng']})")
+        logger.info(f"✓ Geocoded: {venue_name} → ({location['lat']}, {location['lng']})")
         
         return geocode_data
         
@@ -221,11 +221,11 @@ if __name__ == "__main__":
     for venue in test_venues:
         result = geocode_venue(venue)
         if result:
-            print(f" {venue}")
+            print(f"✓ {venue}")
             print(f"  Address: {result['formatted_address']}")
             print(f"  Coordinates: ({result['latitude']}, {result['longitude']})")
         else:
-            print(f" Failed: {venue}")
+            print(f"✗ Failed: {venue}")
         print()
     
     # Test 2: Reverse geocoding
@@ -234,7 +234,7 @@ if __name__ == "__main__":
     
     result = reverse_geocode(35.0781471, -106.6044161)
     if result:
-        print(f" Reverse geocoding successful")
+        print(f"✓ Reverse geocoding successful")
         print(f"  Address: {result['formatted_address']}")
     print()
     
@@ -247,7 +247,7 @@ if __name__ == "__main__":
         35.0781471, -106.6044161,  # Isotopes Park
         35.0833, -106.6197           # The Pit
     )
-    print(f" Distance: Isotopes Park to The Pit = {distance} miles")
+    print(f"✓ Distance: Isotopes Park to The Pit = {distance} miles")
     print()
     
     # Test 4: Batch geocoding
@@ -255,7 +255,7 @@ if __name__ == "__main__":
     print("-" * 70)
     
     batch_results = batch_geocode_venues(test_venues, delay=0.2)
-    print(f"\n Batch geocoding complete")
+    print(f"\n✓ Batch geocoding complete")
     print(f"  Successful: {sum(1 for v in batch_results.values() if v)}/{len(batch_results)}")
     
     print()

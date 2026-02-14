@@ -18,7 +18,7 @@ print("Clear Old Events from Database")
 print("=" * 70)
 print()
 
-print("  WARNING: This will delete all events from the database!")
+print("⚠️  WARNING: This will delete all events from the database!")
 print("A backup will be created first.")
 print()
 
@@ -42,7 +42,7 @@ try:
         
         cur.execute("SELECT COUNT(*) FROM events_backup_before_v2")
         backup_count = cur.fetchone()[0]
-        print(f" Backed up {backup_count} events to events_backup_before_v2")
+        print(f"✓ Backed up {backup_count} events to events_backup_before_v2")
         print()
         
         # Clear events
@@ -51,7 +51,7 @@ try:
         conn.commit()
         
         deleted = cur.rowcount
-        print(f" Deleted {deleted} events")
+        print(f"✓ Deleted {deleted} events")
         print()
         
         # Verify
@@ -60,9 +60,9 @@ try:
         print(f"Events remaining: {remaining}")
         
         if remaining == 0:
-            print(" Database cleared successfully!")
+            print("✓ Database cleared successfully!")
         else:
-            print("  Warning: Some events remain")
+            print("⚠️  Warning: Some events remain")
         
 finally:
     conn.close()

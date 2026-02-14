@@ -131,7 +131,7 @@ finally:
 
 print()
 print("=" * 70)
-print(" Estimated times populated!")
+print("✅ Estimated times populated!")
 print("=" * 70)
 print()
 print("Note: These are estimates based on typical patterns.")

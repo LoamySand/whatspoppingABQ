@@ -162,7 +162,7 @@ def measure_traffic(origin_lat: float, origin_lng: float,
             'raw_response': json.dumps(result)
         }
         
-        logger.info(f" Traffic: {traffic_level}, delay: {delay_minutes} min")
+        logger.info(f"✓ Traffic: {traffic_level}, delay: {delay_minutes} min")
         
         return measurement
         
@@ -261,7 +261,7 @@ def collect_traffic_for_venue_id(venue_id: int, venue_name: str,
     for measurement in measurements:
         measurement['venue_id'] = venue_id
     
-    logger.info(f" Collected {len(measurements)} measurements for {venue_name}")
+    logger.info(f"✓ Collected {len(measurements)} measurements for {venue_name}")
     
     return measurements
 
@@ -288,14 +288,14 @@ if __name__ == "__main__":
     )
     
     if measurement:
-        print(" Traffic measurement successful!")
+        print("✓ Traffic measurement successful!")
         print(f"  Distance: {measurement['distance_miles']} miles")
         print(f"  Travel time: {measurement['travel_time_seconds']} seconds")
         print(f"  Delay: {measurement['delay_minutes']} minutes")
         print(f"  Traffic level: {measurement['traffic_level']}")
         print(f"  Avg speed: {measurement['avg_speed_mph']} mph")
     else:
-        print(" Traffic measurement failed")
+        print("✗ Traffic measurement failed")
     
     print()
     
@@ -310,7 +310,7 @@ if __name__ == "__main__":
         num_points=4
     )
     
-    print(f" Generated {len(points)} sample points:")
+    print(f"✓ Generated {len(points)} sample points:")
     for point in points:
         print(f"  {point['direction']}: ({point['lat']:.4f}, {point['lng']:.4f})")
     
@@ -330,7 +330,7 @@ if __name__ == "__main__":
     )
     
     print()
-    print(f" Collected {len(measurements)} measurements")
+    print(f"✓ Collected {len(measurements)} measurements")
     
     if measurements:
         print("\nTraffic Summary:")

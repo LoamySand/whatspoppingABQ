@@ -18,7 +18,7 @@
 
 ## Schema Analysis
 
-###  **What's Working Well**
+### ✅ **What's Working Well**
 
 #### 1. **Separation of Concerns**
 - Events and venues are properly separated (normalized)
@@ -37,7 +37,7 @@
 
 ---
 
-##  **Issues & Recommendations**
+## ⚠️ **Issues & Recommendations**
 
 ### **Issue 1: Weak Event-Traffic Linkage**
 
@@ -545,19 +545,19 @@ CREATE TABLE event_sentiment (
 ## Recommendations Priority
 
 ### **High Priority (Do Now)**
-1.  Add `day_of_week` and `hour_of_day` to traffic_measurements
-2.  Add `baseline_type` to traffic_measurements  
-3.  Populate metadata for existing data
+1. ✅ Add `day_of_week` and `hour_of_day` to traffic_measurements
+2. ✅ Add `baseline_type` to traffic_measurements  
+3. ✅ Populate metadata for existing data
 
 ### **Medium Priority (Do Soon)**
-4.  Create `event_occurrences` table
-5.  Add `occurrence_id` to traffic_measurements
-6.  Update collectors to use occurrence_id
+4. 🟡 Create `event_occurrences` table
+5. 🟡 Add `occurrence_id` to traffic_measurements
+6. 🟡 Update collectors to use occurrence_id
 
 ### **Low Priority (Future)**
-7.  Add attendance/capacity fields to events
-8.  Add weather tracking
-9.  Create review/sentiment tables
+7. ⚪ Add attendance/capacity fields to events
+8. ⚪ Add weather tracking
+9. ⚪ Create review/sentiment tables
 
 ---
 

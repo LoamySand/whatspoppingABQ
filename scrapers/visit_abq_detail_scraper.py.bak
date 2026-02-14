@@ -451,7 +451,7 @@ if __name__ == "__main__":
     
     events = scrape_events_with_details(max_pages=1)
     
-    print(f"\n Scraped {len(events)} events with details")
+    print(f"\n✓ Scraped {len(events)} events with details")
     print()
     
     if events:

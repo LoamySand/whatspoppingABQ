@@ -34,11 +34,11 @@ try:
     events = scrape_events_with_details(max_pages=10)
     
     print()
-    print(f" Scraped {len(events)} total events")
+    print(f"✓ Scraped {len(events)} total events")
     print()
     
 except Exception as e:
-    print(f" Scraping failed: {e}")
+    print(f"✗ Scraping failed: {e}")
     exit(1)
 
 # Validate
@@ -56,9 +56,9 @@ for event in events:
         invalid_count += 1
         logger.warning(f"Invalid event: {event.get('event_name')} - {msg}")
 
-print(f" Valid: {len(valid_events)}/{len(events)}")
+print(f"✓ Valid: {len(valid_events)}/{len(events)}")
 if invalid_count > 0:
-    print(f" Invalid: {invalid_count}")
+    print(f"⚠ Invalid: {invalid_count}")
 print()
 
 # Data quality preview
@@ -84,10 +84,10 @@ print("-" * 70)
 
 try:
     count = insert_events(valid_events)
-    print(f" Loaded {count} events to database")
+    print(f"✓ Loaded {count} events to database")
     print()
 except Exception as e:
-    print(f" Database load failed: {e}")
+    print(f"✗ Database load failed: {e}")
     exit(1)
 
 # Final statistics

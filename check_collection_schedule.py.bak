@@ -41,12 +41,12 @@ finally:
     conn.close()
 
 if 8 <= day <= 14:
-    print(" ACTIVE - Week 2 (Group 1)")
+    print("✓ ACTIVE - Week 2 (Group 1)")
     print(f"  Venues: ~{group_size} (first half of {total_venues} total)")
     baseline_active = True
     baseline_group = 1
 elif 22 <= day <= 30:
-    print(" ACTIVE - Week 4 (Group 2)")
+    print("✓ ACTIVE - Week 4 (Group 2)")
     print(f"  Venues: ~{group_size} (second half of {total_venues} total)")
     baseline_active = True
     baseline_group = 2
@@ -72,7 +72,7 @@ if baseline_active:
         t_hour, t_minute = map(int, t.split(':'))
         
         if t_hour < hour or (t_hour == hour and t_minute <= minute):
-            status = " Completed"
+            status = "✓ Completed"
             completed_collections += 1
         elif t_hour == hour:
             status = "→ COLLECTING NOW"
@@ -142,7 +142,7 @@ if not events_today:
     print()
     print("API usage today: 0 calls")
 else:
-    print(f" {len(events_today)} event(s) with scheduled times today")
+    print(f"✓ {len(events_today)} event(s) with scheduled times today")
     print()
     
     total_event_calls = 0
@@ -168,7 +168,7 @@ else:
                 if (now - collection_time) < timedelta(minutes=30):
                     status = "→ Collecting now"
                 else:
-                    status = " Completed"
+                    status = "✓ Completed"
             else:
                 status = "○ Upcoming"
             

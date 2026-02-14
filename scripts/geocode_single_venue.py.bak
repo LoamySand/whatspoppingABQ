@@ -21,7 +21,7 @@ def main():
         print(" Geocoding failed!")
         return
     
-    print(f" Geocoded successfully!")
+    print(f"✓ Geocoded successfully!")
     print(f"  Address: {result['formatted_address']}")
     print(f"  Coordinates: ({result['latitude']}, {result['longitude']})")
     print()
@@ -37,7 +37,7 @@ def main():
                 address=result['formatted_address'],
                 place_id=result['place_id']
             )
-            print(f" Saved to database (ID: {venue_id})")
+            print(f"✓ Saved to database (ID: {venue_id})")
         except Exception as e:
             print(f" Error saving: {e}")
     else:

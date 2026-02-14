@@ -64,9 +64,9 @@ print(f"Remaining: ${200 - estimate['estimated_cost']:.2f}")
 print()
 
 if estimate['estimated_cost'] < 200:
-    print(" WITHIN FREE TIER")
+    print("✅ WITHIN FREE TIER")
 else:
-    print("  EXCEEDS FREE TIER")
+    print("⚠️  EXCEEDS FREE TIER")
 
 print()
 print("=" * 70)

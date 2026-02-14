@@ -202,7 +202,7 @@ html_content = f"""
     </style>
 </head>
 <body>
-    <h1> Albuquerque Event Traffic Impact Dashboard</h1>
+    <h1>🚗 Albuquerque Event Traffic Impact Dashboard</h1>
     <p class="subtitle">Analyzing how events affect local traffic patterns</p>
     
     <div class="metrics">
@@ -261,7 +261,7 @@ filename = f"traffic_dashboard_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
 with open(filename, 'w', encoding='utf-8') as f:
     f.write(html_content)
 
-print(f" Dashboard saved to: {filename}")
+print(f"✓ Dashboard saved to: {filename}")
 print()
 print("You can:")
 print("  1. Open it in your browser")

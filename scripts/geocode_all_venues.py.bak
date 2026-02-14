@@ -38,7 +38,7 @@ try:
 finally:
     conn.close()
 
-print(f" Found {len(venue_names)} unique venues")
+print(f"✓ Found {len(venue_names)} unique venues")
 print()
 
 if not venue_names:
@@ -77,13 +77,13 @@ for venue_name, geocode_data in geocode_results.items():
                 place_id=geocode_data['place_id']
             )
             success_count += 1
-            print(f" Inserted: {venue_name} (ID: {venue_id})")
+            print(f"✓ Inserted: {venue_name} (ID: {venue_id})")
         except Exception as e:
             fail_count += 1
             logger.error(f"Failed to insert {venue_name}: {e}")
     else:
         fail_count += 1
-        print(f" Skipped (no geocode data): {venue_name}")
+        print(f"✗ Skipped (no geocode data): {venue_name}")
 
 print()
 
@@ -106,7 +106,7 @@ try:
         updated = cur.rowcount
         conn.commit()
         
-        print(f" Linked {updated} events to venues")
+        print(f"✓ Linked {updated} events to venues")
         
 finally:
     conn.close()

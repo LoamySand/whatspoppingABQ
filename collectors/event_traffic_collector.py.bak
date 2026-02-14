@@ -178,7 +178,7 @@ def collect_traffic_for_event_enhanced(event: dict, num_directions: int = 2) -> 
         
         sleep(0.5)
     
-    logger.info(f" Collected {measurements_collected} measurements for event {event['event_id']}")
+    logger.info(f"✓ Collected {measurements_collected} measurements for event {event['event_id']}")
     
     return measurements_collected
 

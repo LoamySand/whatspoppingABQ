@@ -61,7 +61,7 @@ python flows\ingest_events.py
 
 **Wait ~70 seconds.** You should see:
 ```
- Pipeline completed successfully!
+✅ Pipeline completed successfully!
 ```
 
 **Verify in database:**

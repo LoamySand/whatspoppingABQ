@@ -207,12 +207,12 @@ if __name__ == "__main__":
         plan = get_collection_plan(event)
         
         if plan['collect']:
-            print(f"   Collect: {plan['type']}")
+            print(f"  ✓ Collect: {plan['type']}")
             print(f"    Before: {plan['collect_before']}, After: {plan['collect_after']}")
             print(f"    Directions: {plan['num_directions']} ({', '.join(plan['directions'])})")
             print(f"    API calls: {plan['estimated_calls']}")
         else:
-            print(f"   Skip: {plan['reason']}")
+            print(f"  ✗ Skip: {plan['reason']}")
         
         print()
     

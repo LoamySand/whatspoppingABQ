@@ -1,0 +1,110 @@
+# test_view_direct.py
+"""
+Test querying the view directly vs the join query
+"""
+
+import sys
+sys.path.append('C:\\Users\\lanee\\Desktop\\whatspoppingABQ')
+
+from database.db_utils import query_to_dataframe
+
+print("=" * 70)
+print("View Query Debug")
+print("=" * 70)
+print()
+
+# Test 1: Query view directly
+print("Test 1: Query event_impact_summary view directly")
+print("-" * 70)
+
+query1 = "SELECT * FROM event_impact_summary LIMIT 5"
+
+try:
+    df1 = query_to_dataframe(query1)
+    print(f"✓ Returned {len(df1)} rows")
+    if len(df1) > 0:
+        print("\nColumns:", df1.columns.tolist())
+        print("\nSample data:")
+        print(df1)
+    print()
+except Exception as e:
+    print(f"❌ Error: {e}")
+    import traceback
+    traceback.print_exc()
+    print()
+
+# Test 2: Query with WHERE clause
+print("Test 2: Query with WHERE clause (like dashboard)")
+print("-" * 70)
+
+query2 = """
+    SELECT * 
+    FROM event_impact_summary
+    WHERE avg_delay_before IS NOT NULL
+      AND avg_delay_during IS NOT NULL
+    LIMIT 5
+"""
+
+try:
+    df2 = query_to_dataframe(query2)
+    print(f"✓ Returned {len(df2)} rows")
+    if len(df2) > 0:
+        print("\nSample data:")
+        print(df2[['event_name', 'avg_delay_before', 'avg_delay_during']])
+    print()
+except Exception as e:
+    print(f"❌ Error: {e}")
+    import traceback
+    traceback.print_exc()
+    print()
+
+# Test 3: Full dashboard query
+print("Test 3: Full dashboard query with all joins")
+print("-" * 70)
+
+query3 = """
+    SELECT 
+        e.event_id,
+        e.event_name,
+        e.category,
+        eis.avg_delay_before,
+        eis.avg_delay_during
+    FROM events e
+    JOIN venue_locations v ON e.venue_id = v.venue_id
+    JOIN event_impact_summary eis ON e.event_id = eis.event_id
+    WHERE eis.avg_delay_before IS NOT NULL
+      AND eis.avg_delay_during IS NOT NULL
+    LIMIT 5
+"""
+
+try:
+    df3 = query_to_dataframe(query3)
+    print(f"✓ Returned {len(df3)} rows")
+    if len(df3) > 0:
+        print("\nSample data:")
+        print(df3)
+    else:
+        print("\n❌ No data returned from join!")
+        print("\nLet's check if the join is the problem...")
+        
+        # Check if events have matching IDs
+        check_query = """
+            SELECT 
+                COUNT(*) as total_in_view,
+                COUNT(DISTINCT e.event_id) as events_with_match
+            FROM event_impact_summary eis
+            LEFT JOIN events e ON e.event_id = eis.event_id
+        """
+        
+        check_df = query_to_dataframe(check_query)
+        print("\nJoin check:")
+        print(check_df)
+        
+    print()
+except Exception as e:
+    print(f"❌ Error: {e}")
+    import traceback
+    traceback.print_exc()
+    print()
+
+print("=" * 70)

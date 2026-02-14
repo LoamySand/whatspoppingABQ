@@ -33,7 +33,7 @@ venue_id = insert_venue(
     place_id="ChIJN1t_tDeuEzcRUoH_D90hUEE"
 )
 
-print(f" Venue created/updated (ID: {venue_id})")
+print(f"✓ Venue created/updated (ID: {venue_id})")
 print()
 
 # Create test event
@@ -58,7 +58,7 @@ print("Creating test event...")
 
 inserted = insert_events([test_event])
 
-print(f" Test event created!")
+print(f"✓ Test event created!")
 print()
 
 print("Event details:")

@@ -1,0 +1,169 @@
+# test_enhanced_db_utils.py
+"""
+Test enhanced database utilities with new schema
+"""
+
+import sys
+sys.path.append('C:\\Users\\lanee\\Desktop\\whatspoppingABQ')
+
+from database.db_utils import (
+    test_connection,
+    insert_events,
+    get_event_statistics,
+    get_multi_day_events,
+    get_events_with_times,
+    get_free_events,
+    get_upcoming_events
+)
+
+print("=" * 70)
+print("Enhanced Database Utilities Test")
+print("=" * 70)
+print()
+
+# Test 1: Connection
+print("Test 1: Database Connection")
+print("-" * 70)
+assert test_connection(), "Connection failed"
+print("✓ Connection successful")
+print()
+
+# Test 2: Insert sample enhanced events
+print("Test 2: Insert Enhanced Events")
+print("-" * 70)
+
+sample_events = [
+    {
+        'event_name': 'Test Multi-Day Festival',
+        'venue_name': 'Test Venue',
+        'event_start_date': '2026-03-01',
+        'event_end_date': '2026-03-03',
+        'event_start_time': '10:00:00',
+        'event_end_time': '22:00:00',
+        'is_multi_day': True,
+        'category': 'Festival',
+        'sponsor': 'Test Sponsor Inc.',
+        'cost_min': 25.00,
+        'cost_max': 50.00,
+        'cost_description': '$25-$50',
+        'phone': '5055551234',
+        'email': 'test@example.com',
+        'ticket_url': 'https://example.com/tickets',
+        'website_url': 'https://example.com',
+        'source_url': 'https://test.com/event1'
+    },
+    {
+        'event_name': 'Test Single Day Concert',
+        'venue_name': 'Test Hall',
+        'event_start_date': '2026-03-15',
+        'event_end_date': '2026-03-15',
+        'event_start_time': '20:00:00',
+        'event_end_time': '23:00:00',
+        'is_multi_day': False,
+        'category': 'Music',
+        'cost_min': 0,
+        'cost_max': 0,
+        'cost_description': 'Free',
+        'source_url': 'https://test.com/event2'
+    }
+]
+
+try:
+    count = insert_events(sample_events)
+    print(f"✓ Inserted {count} sample events")
+except Exception as e:
+    print(f"✗ Error: {e}")
+
+print()
+
+# Test 3: Get statistics
+print("Test 3: Event Statistics")
+print("-" * 70)
+
+try:
+    stats = get_event_statistics()
+    
+    print(f"Total events: {stats['total_events']}")
+    print(f"Multi-day events: {stats['multi_day_events']}")
+    print(f"Events with times: {stats['events_with_times']}")
+    print(f"Events with cost info: {stats['events_with_cost']}")
+    print(f"Free events: {stats['free_events']}")
+    print(f"Events with sponsors: {stats['events_with_sponsors']}")
+    
+    if 'avg_cost_min' in stats:
+        print(f"Average cost: ${stats['avg_cost_min']:.2f} - ${stats['avg_cost_max']:.2f}")
+    
+    print()
+    print("Top categories:")
+    for cat, count in list(stats['by_category'].items())[:5]:
+        print(f"  {cat}: {count}")
+    
+except Exception as e:
+    print(f"✗ Error: {e}")
+
+print()
+
+# Test 4: Query multi-day events
+print("Test 4: Multi-Day Events Query")
+print("-" * 70)
+
+try:
+    multi_day = get_multi_day_events()
+    print(f"Found {len(multi_day)} multi-day events")
+    
+    for event in multi_day[:3]:
+        print(f"  - {event['event_name']}")
+        print(f"    {event['event_start_date']} to {event['event_end_date']} ({event.get('duration_days')} days)")
+except Exception as e:
+    print(f"✗ Error: {e}")
+
+print()
+
+# Test 5: Query events with times
+print("Test 5: Events With Times Query")
+print("-" * 70)
+
+try:
+    with_times = get_events_with_times()
+    print(f"Found {len(with_times)} events with start times")
+    
+    for event in with_times[:3]:
+        print(f"  - {event['event_name']}: {event['event_start_time']}")
+except Exception as e:
+    print(f"✗ Error: {e}")
+
+print()
+
+# Test 6: Free events
+print("Test 6: Free Events Query")
+print("-" * 70)
+
+try:
+    free = get_free_events()
+    print(f"Found {len(free)} free events")
+    
+    for event in free[:3]:
+        print(f"  - {event['event_name']} ({event['category']})")
+except Exception as e:
+    print(f"✗ Error: {e}")
+
+print()
+
+# Test 7: Upcoming events
+print("Test 7: Upcoming Events Query")
+print("-" * 70)
+
+try:
+    upcoming = get_upcoming_events(days_ahead=30)
+    print(f"Found {len(upcoming)} events in next 30 days")
+    
+    for event in upcoming[:5]:
+        multi_day = " (multi-day)" if event.get('is_multi_day') else ""
+        print(f"  - {event['event_start_date']}: {event['event_name']}{multi_day}")
+except Exception as e:
+    print(f"✗ Error: {e}")
+
+print()
+print("=" * 70)
+print("All Tests Complete!")
+print("=" * 70)

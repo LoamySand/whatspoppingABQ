@@ -18,7 +18,7 @@ from datetime import datetime
 # Page config
 st.set_page_config(
     page_title="ABQ Event Traffic Dashboard",
-    page_icon="",
+    page_icon="🚗",
     layout="wide"
 )
 
@@ -210,7 +210,7 @@ try:
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader(" Impact Above Baseline by Category")
+        st.subheader("📊 Impact Above Baseline by Category")
         
         # Filter out categories with no baseline data
         cat_with_baseline = category_df[category_df['avg_impact_minutes'].notna()]
@@ -229,7 +229,7 @@ try:
         st.plotly_chart(fig_category, use_container_width=True)
     
     with col2:
-        st.subheader(" Data Quality Distribution")
+        st.subheader("🎯 Data Quality Distribution")
         
         quality_counts = events_df['data_quality'].value_counts()
         
@@ -249,7 +249,7 @@ try:
         st.plotly_chart(fig_quality, use_container_width=True)
     
     # Event vs Baseline comparison
-    st.subheader(" Event Traffic vs Baseline")
+    st.subheader("📈 Event Traffic vs Baseline")
     
     # Only show events with both measurements
     comparison_df = filtered_df[

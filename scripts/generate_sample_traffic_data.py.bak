@@ -240,7 +240,7 @@ for i, event in enumerate(events, 1):
         event_measurements += 1
     
     total_measurements += event_measurements
-    print(f"   Created {event_measurements} measurements")
+    print(f"  ✓ Created {event_measurements} measurements")
     print()
 
 print("=" * 70)

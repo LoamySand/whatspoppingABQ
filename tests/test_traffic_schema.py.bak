@@ -1,0 +1,144 @@
+# test_traffic_schema.py
+"""
+Test the traffic data schema and database functions
+"""
+
+import sys
+sys.path.append('C:\\Users\\lanee\\Desktop\\whatspoppingABQ')
+
+from database.db_utils import (
+    test_connection,
+    insert_venue,
+    get_venue_by_name,
+    get_all_venues,
+    insert_traffic_measurement
+)
+from datetime import datetime
+import json
+
+print("=" * 70)
+print("Traffic Schema Test")
+print("=" * 70)
+print()
+
+# Test 1: Database connection
+print("Test 1: Database Connection")
+print("-" * 70)
+assert test_connection(), "Database connection failed"
+print("✓ Database connection successful")
+print()
+
+# Test 2: Insert venues
+print("Test 2: Insert Venues")
+print("-" * 70)
+
+venues_to_insert = [
+    {
+        'venue_name': 'Isotopes Park',
+        'latitude': 35.0781471,
+        'longitude': -106.6044161,
+        'address': '1601 Avenida Cesar Chavez SE, Albuquerque, NM 87106'
+    },
+    {
+        'venue_name': 'University Arena ("the Pit")',
+        'latitude': 35.0833,
+        'longitude': -106.6197,
+        'address': '1111 University Blvd SE, Albuquerque, NM 87106'
+    },
+    {
+        'venue_name': 'Tingley Coliseum',
+        'latitude': 35.0648,
+        'longitude': -106.6730,
+        'address': '300 San Pedro Dr NE, Albuquerque, NM 87108'
+    }
+]
+
+for venue in venues_to_insert:
+    venue_id = insert_venue(**venue)
+    print(f"✓ Inserted venue: {venue['venue_name']} (ID: {venue_id})")
+
+print()
+
+# Test 3: Retrieve venues
+print("Test 3: Retrieve Venues")
+print("-" * 70)
+
+# Get single venue
+pit = get_venue_by_name('University Arena ("the Pit")')
+print(f"✓ Retrieved venue: {pit['venue_name']}")
+print(f"  Coordinates: ({pit['latitude']}, {pit['longitude']})")
+print()
+
+# Get all venues
+all_venues = get_all_venues()
+print(f"✓ Total venues in database: {len(all_venues)}")
+for v in all_venues:
+    print(f"  - {v['venue_name']}")
+print()
+
+# Test 4: Insert traffic measurement
+print("Test 4: Insert Traffic Measurement")
+print("-" * 70)
+
+# Sample traffic data
+traffic_data = {
+    'traffic_level': 'moderate',
+    'avg_speed_mph': 35.5,
+    'typical_speed_mph': 45.0,
+    'travel_time_seconds': 600,
+    'typical_time_seconds': 480,
+    'delay_minutes': 2,
+    'data_source': 'google_maps',
+    'origin_lat': 35.0781,
+    'origin_lng': -106.6044,
+    'destination_lat': 35.0833,
+    'destination_lng': -106.6197,
+    'distance_miles': 3.2,
+    'raw_response': json.dumps({'test': 'data'})
+}
+
+measurement_id = insert_traffic_measurement(
+    venue_id=pit['venue_id'],
+    measurement_time=datetime.now(),
+    traffic_data=traffic_data
+)
+
+print(f"✓ Inserted traffic measurement (ID: {measurement_id})")
+print(f"  Traffic level: {traffic_data['traffic_level']}")
+print(f"  Delay: {traffic_data['delay_minutes']} minutes")
+print()
+
+# Test 5: Query the view
+print("Test 5: Query Events with Venues View")
+print("-" * 70)
+
+from database.db_utils import get_connection
+
+conn = get_connection()
+try:
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT event_name, venue_name, latitude, longitude
+            FROM events_with_venues
+            LIMIT 5
+        """)
+        
+        rows = cur.fetchall()
+        print(f"✓ Found {len(rows)} events with venue data")
+        for row in rows:
+            event_name, venue_name, lat, lng = row
+            print(f"  - {event_name[:40]}...")
+            if lat and lng:
+                print(f"    Venue: {venue_name} ({lat}, {lng})")
+            else:
+                print(f"    Venue: {venue_name} (not geocoded yet)")
+finally:
+    conn.close()
+
+print()
+
+print("=" * 70)
+print("All Schema Tests Passed! ✅")
+print("=" * 70)
+print()
+print("Database ready for traffic data collection!")

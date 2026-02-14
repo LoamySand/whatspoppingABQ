@@ -117,7 +117,7 @@ print("-" * 70)
 measurements = collect_traffic_for_event(event, plan)
 
 print()
-print(f" Collected {measurements} traffic measurements")
+print(f"✓ Collected {measurements} traffic measurements")
 print()
 print("Check database:")
 print(f"  SELECT * FROM traffic_measurements WHERE venue_id = {event['venue_id']} ORDER BY measurement_time DESC LIMIT 5;")

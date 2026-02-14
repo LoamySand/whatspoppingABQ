@@ -21,7 +21,7 @@ print()
 analyses = analyze_all_events()
 
 if not analyses:
-    print("  No events with traffic data found")
+    print("⚠️  No events with traffic data found")
     print()
     print("To generate report:")
     print("  1. Ensure events have times in database")
@@ -60,13 +60,13 @@ for cat, avg_delay in sorted(
     
     # Determine recommendation
     if avg_delay > 5:
-        rec = "  HIGH IMPACT - Consider traffic management"
+        rec = "⚠️  HIGH IMPACT - Consider traffic management"
     elif avg_delay > 2:
-        rec = "  MODERATE IMPACT - Monitor traffic"
+        rec = "⚠️  MODERATE IMPACT - Monitor traffic"
     elif avg_delay > 1:
-        rec = " LOW IMPACT"
+        rec = "✓ LOW IMPACT"
     else:
-        rec = " MINIMAL IMPACT"
+        rec = "✓ MINIMAL IMPACT"
     
     print(f"     {rec}")
     print()
@@ -100,7 +100,7 @@ if high_impact_cats:
         print(f"  • {cat} (avg +{summary['category_avg_impact'][cat]:.1f} min)")
     print()
 else:
-    print(" No categories show consistently high traffic impact")
+    print("✓ No categories show consistently high traffic impact")
 
 print()
 print("=" * 70)
@@ -131,4 +131,4 @@ with open(filename, 'w') as f:
         f.write(f"{i}. {event['event_name']} - {event['category']}\n")
         f.write(f"   Impact: +{event['delay_increase']:.1f} min\n")
 
-print(f"\n Report saved to: {filename}")
+print(f"\n✓ Report saved to: {filename}")
