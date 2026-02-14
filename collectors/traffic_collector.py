@@ -1,4 +1,3 @@
-# collectors/traffic_collector.py
 """
 Traffic data collector using Google Maps Distance Matrix API.
 Collects traffic conditions around event venues.

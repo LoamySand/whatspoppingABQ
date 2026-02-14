@@ -34,58 +34,103 @@ def load_event_data():
     
     query = """
         SELECT 
-            e.event_id,
-            e.event_name,
-            e.event_start_date,
-            e.category,
-            v.venue_name,
-            v.latitude,
-            v.longitude,
-            eis.measurement_count,
-            eis.avg_delay_before,
-            eis.avg_delay_during,
-            eis.avg_delay_after,
-            (eis.avg_delay_after - eis.avg_delay_before) as impact_minutes
-        FROM events e
-        JOIN venue_locations v ON e.venue_id = v.venue_id
-        JOIN event_impact_summary eis ON e.event_id = eis.event_id
-        WHERE eis.avg_delay_before IS NOT NULL
-          AND eis.avg_delay_after IS NOT NULL
+            event_id,
+            event_name,
+            event_start_date,
+            event_start_time,
+            category,
+            venue_name,
+            latitude,
+            longitude,
+            event_measurements,
+            baseline_measurements,
+            event_avg_delay,
+            baseline_avg_delay,
+            impact_above_baseline,
+            impact_level,
+            data_quality
+        FROM event_impact_detail
+       -- WHERE data_quality IN ('complete', 'partial')
+       --   AND event_measurements > 0
+        ORDER BY event_start_date DESC
     """
     
     df = query_to_dataframe(query)
     
-    # Convert Decimal columns to float
-    numeric_cols = ['latitude', 'longitude', 'measurement_count', 
-                    'avg_delay_before', 'avg_delay_during', 'avg_delay_after', 
-                    'impact_minutes']
+    # Convert Decimal to float
+    numeric_cols = ['latitude', 'longitude', 'event_avg_delay', 
+                    'baseline_avg_delay', 'impact_above_baseline']
     
     for col in numeric_cols:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce')
-    
-    # Add impact level
-    df['impact_level'] = pd.cut(
-        df['impact_minutes'],
-        bins=[-float('inf'), 1, 2, 5, float('inf')],
-        labels=['Low', 'Moderate', 'High', 'Severe']
-    )
-    
+    # Derive commonly-used dashboard columns for compatibility
+    # 'impact_minutes' expected by visualizations -> use 'impact_above_baseline' if present
+    if 'impact_above_baseline' in df.columns:
+        df['impact_minutes'] = pd.to_numeric(df['impact_above_baseline'], errors='coerce')
+    elif 'event_avg_delay' in df.columns and 'baseline_avg_delay' in df.columns:
+        df['impact_minutes'] = pd.to_numeric(df['event_avg_delay'], errors='coerce') - pd.to_numeric(df['baseline_avg_delay'], errors='coerce')
+
+    # 'measurement_count' used for bubble sizes -> map from 'event_measurements' if available
+    if 'event_measurements' in df.columns:
+        df['measurement_count'] = pd.to_numeric(df['event_measurements'], errors='coerce')
+
     return df
+
 
 @st.cache_data(ttl=3600)
 def load_category_data():
     """Load category impact data"""
     
     query = """
-        SELECT * FROM category_traffic_impact
-        ORDER BY avg_impact_minutes DESC
+        SELECT 
+            category,
+            event_count,
+            events_with_baseline,
+            avg_impact_minutes,
+            max_impact_minutes,
+            avg_event_delay,
+            avg_baseline_delay,
+            pct_high_impact
+        FROM category_traffic_impact
+        ORDER BY avg_impact_minutes DESC NULLS LAST
     """
     
     df = query_to_dataframe(query)
     
     # Convert numeric columns
-    numeric_cols = ['event_count', 'avg_impact_minutes', 'max_impact_minutes']
+    numeric_cols = ['event_count', 'events_with_baseline', 'avg_impact_minutes', 
+                    'max_impact_minutes', 'avg_event_delay', 'avg_baseline_delay',
+                    'pct_high_impact']
+    
+    for col in numeric_cols:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+    
+    return df
+
+
+@st.cache_data(ttl=3600)
+def load_baseline_patterns():
+    """Load baseline traffic patterns"""
+    
+    query = """
+        SELECT 
+            venue_name,
+            day_name,
+            hour_of_day,
+            avg_delay,
+            avg_speed,
+            typical_traffic_level,
+            measurement_count
+        FROM venue_baseline_patterns
+        ORDER BY venue_name, day_of_week, hour_of_day
+    """
+    
+    df = query_to_dataframe(query)
+    
+    # Convert numeric columns
+    numeric_cols = ['hour_of_day', 'avg_delay', 'avg_speed', 'measurement_count']
     
     for col in numeric_cols:
         if col in df.columns:
@@ -94,9 +139,11 @@ def load_category_data():
     return df
 
 # Load data
+# After loading data
 try:
     events_df = load_event_data()
     category_df = load_category_data()
+    baseline_df = load_baseline_patterns()
     
     # Sidebar filters
     st.sidebar.header("Filters")
@@ -106,15 +153,38 @@ try:
     selected_category = st.sidebar.selectbox("Event Category", categories)
     
     # Impact level filter
-    impact_levels = ['All'] + events_df['impact_level'].cat.categories.tolist()
+    impact_levels = ['All'] + ['severe', 'high', 'moderate', 'low', 'none', 'unknown']
     selected_impact = st.sidebar.selectbox("Impact Level", impact_levels)
+    
+    # Data quality filter
+    quality_options = ['All', 'complete', 'partial']
+    selected_quality = st.sidebar.selectbox("Data Quality", quality_options)
     
     # Filter data
     filtered_df = events_df.copy()
+
+# Debug: inspect filtered_df (toggleable)
+    if st.sidebar.checkbox("Show debug: filtered_df"):
+        st.markdown("**filtered_df diagnostics**")
+        st.write("shape:", filtered_df.shape)
+        st.write("columns:", filtered_df.columns.tolist())
+        st.write("dtypes:")
+        st.write(filtered_df.dtypes)
+        st.write("non-null counts:")
+        st.write(filtered_df.count())
+        st.write("null counts:")
+        st.write(filtered_df.isna().sum())
+        if filtered_df.empty:
+            st.error("filtered_df is EMPTY — no rows match current filters")
+        else:
+            st.dataframe(filtered_df.head(50), use_container_width=True)
+
     if selected_category != 'All':
         filtered_df = filtered_df[filtered_df['category'] == selected_category]
     if selected_impact != 'All':
         filtered_df = filtered_df[filtered_df['impact_level'] == selected_impact]
+    if selected_quality != 'All':
+        filtered_df = filtered_df[filtered_df['data_quality'] == selected_quality]
     
     # Key metrics
     col1, col2, col3, col4 = st.columns(4)
@@ -123,16 +193,16 @@ try:
         st.metric("Total Events Analyzed", len(events_df))
     
     with col2:
-        avg_impact = events_df['impact_minutes'].mean()
-        st.metric("Average Traffic Impact", f"{avg_impact:.1f} min")
+        avg_impact = events_df['impact_above_baseline'].mean()
+        st.metric("Avg Impact Above Baseline", f"{avg_impact:.1f} min" if pd.notna(avg_impact) else "N/A")
     
     with col3:
-        high_impact = len(events_df[events_df['impact_level'].isin(['High', 'Severe'])])
-        st.metric("High Impact Events", high_impact)
+        complete_data = len(events_df[events_df['data_quality'] == 'complete'])
+        st.metric("Events with Baseline", complete_data)
     
     with col4:
-        total_measurements = events_df['measurement_count'].sum()
-        st.metric("Traffic Measurements", int(total_measurements))
+        high_impact = len(events_df[events_df['impact_level'].isin(['high', 'severe'])])
+        st.metric("High Impact Events", high_impact)
     
     st.markdown("---")
     
@@ -140,39 +210,87 @@ try:
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("Traffic Impact by Category")
+        st.subheader("📊 Impact Above Baseline by Category")
+        
+        # Filter out categories with no baseline data
+        cat_with_baseline = category_df[category_df['avg_impact_minutes'].notna()]
         
         fig_category = px.bar(
-            category_df,
+            cat_with_baseline,
             x='category',
             y='avg_impact_minutes',
-            title='Average Traffic Delay by Event Category',
-            labels={'avg_impact_minutes': 'Avg Delay (minutes)', 'category': 'Category'},
+            title='Average Traffic Impact vs Baseline',
+            labels={'avg_impact_minutes': 'Minutes Above Baseline', 'category': 'Category'},
             color='avg_impact_minutes',
-            color_continuous_scale='RdYlGn_r'
+            color_continuous_scale='RdYlGn_r',
+            hover_data=['events_with_baseline', 'pct_high_impact']
         )
         fig_category.update_layout(xaxis_tickangle=-45, height=400)
         st.plotly_chart(fig_category, use_container_width=True)
     
     with col2:
-        st.subheader("Impact Level Distribution")
+        st.subheader("🎯 Data Quality Distribution")
         
-        impact_counts = filtered_df['impact_level'].value_counts()
+        quality_counts = events_df['data_quality'].value_counts()
         
-        fig_impact = px.pie(
-            values=impact_counts.values,
-            names=impact_counts.index,
-            title='Events by Impact Level',
-            color=impact_counts.index,
+        fig_quality = px.pie(
+            values=quality_counts.values,
+            names=quality_counts.index,
+            title='Event Data Quality',
+            color=quality_counts.index,
             color_discrete_map={
-                'Low': '#90EE90',
-                'Moderate': '#FFD700',
-                'High': '#FFA500',
-                'Severe': '#FF4500'
+                'complete': '#90EE90',
+                'partial': '#FFD700',
+                'no_baseline_data': '#FFA500',
+                'no_event_data': '#FF4500'
             }
         )
-        fig_impact.update_layout(height=400)
-        st.plotly_chart(fig_impact, use_container_width=True)
+        fig_quality.update_layout(height=400)
+        st.plotly_chart(fig_quality, use_container_width=True)
+    
+    # Event vs Baseline comparison
+    st.subheader("📈 Event Traffic vs Baseline")
+    
+    # Only show events with both measurements
+    comparison_df = filtered_df[
+        (filtered_df['event_avg_delay'].notna()) & 
+        (filtered_df['baseline_avg_delay'].notna())
+    ].copy()
+    
+    if len(comparison_df) > 0:
+        # Create comparison chart
+        comparison_df['Event Traffic'] = comparison_df['event_avg_delay']
+        comparison_df['Baseline Traffic'] = comparison_df['baseline_avg_delay']
+        
+        fig_comparison = go.Figure()
+        
+        fig_comparison.add_trace(go.Scatter(
+            x=comparison_df['event_name'],
+            y=comparison_df['Baseline Traffic'],
+            name='Baseline (Same Day/Hour)',
+            mode='markers',
+            marker=dict(size=10, color='green', symbol='circle')
+        ))
+        
+        fig_comparison.add_trace(go.Scatter(
+            x=comparison_df['event_name'],
+            y=comparison_df['Event Traffic'],
+            name='Event Traffic',
+            mode='markers',
+            marker=dict(size=10, color='red', symbol='diamond')
+        ))
+        
+        fig_comparison.update_layout(
+            title='Event Delay vs Baseline Delay (Same Day/Hour)',
+            xaxis_title='Event',
+            yaxis_title='Delay (minutes)',
+            height=400,
+            hovermode='closest'
+        )
+        
+        st.plotly_chart(fig_comparison, use_container_width=True)
+    else:
+        st.info("No events with both event and baseline data available for comparison")
     
     # Timeline chart
     st.subheader("Traffic Impact Over Time")
@@ -200,17 +318,12 @@ try:
     st.subheader("Event Locations & Traffic Impact")
     
     # Create map with Plotly
-    # Ensure marker sizes are non-negative (Plotly requires size >= 0)
-    map_df = filtered_df.copy()
-    # Replace NaN and negative impact values with 0 for marker sizing
-    map_df['map_size'] = map_df['impact_minutes'].fillna(0).clip(lower=0)
-
     fig_map = px.scatter_mapbox(
-        map_df,
+        filtered_df,
         lat='latitude',
         lon='longitude',
         color='impact_minutes',
-        size='map_size',
+        size='impact_minutes',
         hover_name='event_name',
         hover_data=['venue_name', 'category', 'impact_minutes'],
         color_continuous_scale='RdYlGn_r',

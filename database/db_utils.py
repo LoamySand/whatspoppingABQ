@@ -3,6 +3,7 @@
 Database utilities for event analytics pipeline.
 Handles connections and data insertion to PostgreSQL.
 """
+import datetime
 import os
 from dotenv import load_dotenv
 import psycopg2
@@ -496,37 +497,72 @@ def get_all_venues() -> List[Dict]:
 # ============================================================
 # TRAFFIC MEASUREMENT FUNCTIONS
 # ============================================================
-
-def insert_traffic_measurement(venue_id: int, measurement_time, 
-                               traffic_data: Dict) -> int:
+def insert_traffic_measurement(venue_id: int, measurement_time: datetime, 
+                               traffic_data: Dict, event_id: int = None) -> int:
     """
-    Insert a traffic measurement.
+    Insert a traffic measurement into the database.
     
     Args:
         venue_id: Venue ID
-        measurement_time: When measurement was taken
+        measurement_time: When the measurement was taken
         traffic_data: Dictionary with traffic metrics
+        event_id: Optional event ID this measurement is for (None for baseline)
         
     Returns:
-        measurement_id of inserted record
+        Measurement ID
     """
     conn = get_connection()
+    
     try:
         with conn.cursor() as cur:
-            cur.execute("""
+            # Automatically calculate metadata
+            # Python weekday(): Monday=0, Tuesday=1, ..., Sunday=6
+            # PostgreSQL DOW: Sunday=0, Monday=1, ..., Saturday=6
+            # Conversion: (python_weekday + 1) % 7
+            # Use the converted value so stored day_of_week matches EXTRACT(DOW FROM measurement_time)
+            day_of_week = (measurement_time.weekday() + 1) % 7  # 0=Sun, 6=Sat
+            
+            hour_of_day = measurement_time.hour
+            
+            # Determine if baseline
+            is_baseline = traffic_data.get('is_baseline', False)
+            if is_baseline:
+                baseline_type = traffic_data.get('baseline_type', 'weekly')
+            else:
+                baseline_type = None
+            
+            query = """
                 INSERT INTO traffic_measurements (
-                    venue_id, measurement_time, traffic_level,
-                    avg_speed_mph, typical_speed_mph,
-                    travel_time_seconds, typical_time_seconds,
-                    delay_minutes, data_source,
-                    origin_lat, origin_lng,
-                    destination_lat, destination_lng,
-                    distance_miles, raw_response
+                    venue_id,
+                    event_id,
+                    measurement_time,
+                    traffic_level,
+                    avg_speed_mph,
+                    typical_speed_mph,
+                    travel_time_seconds,
+                    typical_time_seconds,
+                    delay_minutes,
+                    origin_lat,
+                    origin_lng,
+                    destination_lat,
+                    destination_lng,
+                    distance_miles,
+                    data_source,
+                    raw_response,
+                    is_baseline,
+                    baseline_type,
+                    day_of_week,
+                    hour_of_day
+                ) VALUES (
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING measurement_id
-            """, (
+            """
+            
+            cur.execute(query, (
                 venue_id,
+                event_id,
                 measurement_time,
                 traffic_data.get('traffic_level'),
                 traffic_data.get('avg_speed_mph'),
@@ -534,19 +570,22 @@ def insert_traffic_measurement(venue_id: int, measurement_time,
                 traffic_data.get('travel_time_seconds'),
                 traffic_data.get('typical_time_seconds'),
                 traffic_data.get('delay_minutes'),
-                traffic_data.get('data_source', 'google_maps'),
                 traffic_data.get('origin_lat'),
                 traffic_data.get('origin_lng'),
                 traffic_data.get('destination_lat'),
                 traffic_data.get('destination_lng'),
                 traffic_data.get('distance_miles'),
-                traffic_data.get('raw_response')
+                traffic_data.get('data_source'),
+                traffic_data.get('raw_response'),
+                is_baseline,
+                baseline_type,
+                day_of_week,
+                hour_of_day
             ))
             
             measurement_id = cur.fetchone()[0]
             conn.commit()
             
-            logger.info(f"Inserted traffic measurement for venue {venue_id}")
             return measurement_id
             
     except Exception as e:

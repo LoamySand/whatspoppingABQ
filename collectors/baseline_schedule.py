@@ -174,12 +174,13 @@ def collect_baseline_for_group(group_number: int, max_calls: int = 1000):
             break
         
         try:
-            # Collect baseline traffic
+            # Collect baseline traffic with baseline_type
             measurements = collect_baseline_traffic_for_venue(
                 venue['venue_id'],
                 venue['venue_name'],
                 venue['latitude'],
-                venue['longitude']
+                venue['longitude'],
+                baseline_type='weekly'
             )
             
             # Insert into database
@@ -188,7 +189,8 @@ def collect_baseline_for_group(group_number: int, max_calls: int = 1000):
                     insert_traffic_measurement(
                         venue_id=venue['venue_id'],
                         measurement_time=measurement['measurement_time'],
-                        traffic_data=measurement
+                        traffic_data=measurement,
+                        event_id=None
                     )
                     total_measurements += 1
                     api_calls_made += 1

@@ -123,13 +123,12 @@ def should_collect_now_enhanced(event: dict) -> dict:
         'reason': f"Not at a collection point (event in {time_diff_minutes:.0f} min)"
     }
 
-
 def collect_traffic_for_event_enhanced(event: dict, num_directions: int = 2) -> int:
     """
     Collect traffic measurements for an event.
     
     Args:
-        event: Event dictionary with venue info
+        event: Event dictionary with venue info and event_id
         num_directions: Number of directions to sample (default 2)
         
     Returns:
@@ -137,6 +136,7 @@ def collect_traffic_for_event_enhanced(event: dict, num_directions: int = 2) -> 
     """
     logger.info(f"Collecting traffic for: {event['event_name']}")
     logger.info(f"  Category: {event['category']}")
+    logger.info(f"  Event ID: {event['event_id']}") 
     
     # Generate sample points
     all_points = generate_points_around_location(
@@ -169,7 +169,8 @@ def collect_traffic_for_event_enhanced(event: dict, num_directions: int = 2) -> 
                 insert_traffic_measurement(
                     venue_id=event['venue_id'],
                     measurement_time=measurement['measurement_time'],
-                    traffic_data=measurement
+                    traffic_data=measurement,
+                    event_id=event['event_id']
                 )
                 measurements_collected += 1
             except Exception as e:
@@ -177,7 +178,7 @@ def collect_traffic_for_event_enhanced(event: dict, num_directions: int = 2) -> 
         
         sleep(0.5)
     
-    logger.info(f"✓ Collected {measurements_collected} measurements")
+    logger.info(f"✓ Collected {measurements_collected} measurements for event {event['event_id']}")
     
     return measurements_collected
 

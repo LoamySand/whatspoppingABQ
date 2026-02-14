@@ -108,10 +108,10 @@ def get_traffic_flow(lat: float, lon: float, point_name: str = None) -> Optional
         logger.error(f"Error processing TomTom data: {e}")
         return None
 
-
 def collect_baseline_traffic_for_venue(venue_id: int, venue_name: str,
                                        lat: float, lon: float,
-                                       radius_miles: float = 1.0) -> list:
+                                       radius_miles: float = 1.0,
+                                       baseline_type: str = 'weekly') -> list:
     """
     Collect baseline traffic around a venue using TomTom.
     
@@ -121,6 +121,7 @@ def collect_baseline_traffic_for_venue(venue_id: int, venue_name: str,
         lat: Venue latitude
         lon: Venue longitude
         radius_miles: Radius around venue
+        baseline_type: Type of baseline ('weekly', 'monthly', 'seasonal')
         
     Returns:
         List of traffic measurements
@@ -154,7 +155,8 @@ def collect_baseline_traffic_for_venue(venue_id: int, venue_name: str,
             measurement['destination_lat'] = lat
             measurement['destination_lng'] = lon
             measurement['distance_miles'] = radius_miles
-            measurement['is_baseline'] = True  # Flag as baseline data
+            measurement['is_baseline'] = True
+            measurement['baseline_type'] = baseline_type
             
             measurements.append(measurement)
         
