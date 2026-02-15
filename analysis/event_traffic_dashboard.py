@@ -284,10 +284,10 @@ try:
         ))
         
         fig_comparison.update_layout(
-            title='Event Delay vs Baseline Delay (Same Day/Hour)',
+            title='Event Delay vs Baseline Delay',
             xaxis_title='Event',
             yaxis_title='Delay (minutes)',
-            height=400,
+            height=600,
             hovermode='closest'
         )
         
