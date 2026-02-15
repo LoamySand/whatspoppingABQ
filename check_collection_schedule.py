@@ -157,10 +157,10 @@ else:
         print(f"  Category: {event['category']}")
         print()
         
-        # Calculate collection windows (every 30 min from -2hr to +2hr)
+        # Calculate collection windows (every 30 min from -1hr to +1hr)
         collection_points = []
         
-        for offset_minutes in range(-120, 121, 30):
+        for offset_minutes in range(-60, 61, 30):
             collection_time = event_datetime + timedelta(minutes=offset_minutes)
             
             # Determine status
@@ -187,7 +187,7 @@ else:
                 'window': window_label
             })
         
-        print(f"  Collection schedule (9 time points, 2 directions each = 18 calls):")
+        print(f"  Collection schedule (5 time points, 2 directions each = 10 calls):")
         
         completed = 0
         upcoming = 0
@@ -200,9 +200,9 @@ else:
             elif "Upcoming" in point['status']:
                 upcoming += 1
         
-        calls_this_event = 18  # 9 points × 2 directions
-        completed_calls = (completed / 9) * calls_this_event
-        remaining_calls = (upcoming / 9) * calls_this_event
+        calls_this_event = 10  # 5 points × 2 directions
+        completed_calls = (completed / 5) * calls_this_event
+        remaining_calls = (upcoming / 5) * calls_this_event
         
         print()
         print(f"  API calls: {completed_calls:.0f} completed, {remaining_calls:.0f} remaining ({calls_this_event} total)")
@@ -228,7 +228,7 @@ baseline_calls_today = 0
 if baseline_active:
     baseline_calls_today = group_size * 4 * 6
 
-event_calls_today = len(events_today) * 18 if events_today else 0
+event_calls_today = len(events_today) * 10 if events_today else 0
 
 print(f"Baseline (TomTom):     {baseline_calls_today:5,} calls")
 print(f"Events (Google Maps):  {event_calls_today:5,} calls")

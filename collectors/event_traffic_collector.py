@@ -93,10 +93,10 @@ def should_collect_now_enhanced(event: dict) -> dict:
     # Calculate time difference in minutes
     time_diff_minutes = (event_datetime - now).total_seconds() / 60
     
-    # We want to collect at: -120, -90, -60, -30, 0, +30, +60, +90, +120 minutes
+    # We want to collect at: -60, -30, 0, +30, +60 minutes
     # Check if we're within ±15 minutes of any collection point
     
-    collection_points = [-120, -90, -60, -30, 0, 30, 60, 90, 120]
+    collection_points = [-60, -30, 0, 30, 60]
     
     for target_minutes in collection_points:
         # If we're within 15 minutes of this collection point

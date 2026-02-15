@@ -74,6 +74,9 @@ def load_event_data():
     # 'measurement_count' used for bubble sizes -> map from 'event_measurements' if available
     if 'event_measurements' in df.columns:
         df['measurement_count'] = pd.to_numeric(df['event_measurements'], errors='coerce')
+    # Ensure measurement_count is numeric and non-null for plotting sizes
+    if 'measurement_count' in df.columns:
+        df['measurement_count'] = pd.to_numeric(df['measurement_count'], errors='coerce').fillna(0).clip(lower=0)
 
     return df
 
@@ -318,12 +321,20 @@ try:
     st.subheader("Event Locations & Traffic Impact")
     
     # Create map with Plotly
+    map_df = filtered_df.copy()
+    # Prefer measurement_count for marker sizing when available; fall back to impact magnitude
+    if 'measurement_count' in map_df.columns and map_df['measurement_count'].notna().any():
+        map_df['map_size'] = pd.to_numeric(map_df['measurement_count'], errors='coerce').fillna(0).clip(lower=0)
+    else:
+        # use absolute impact_minutes as fallback size (ensure numeric and non-negative)
+        map_df['map_size'] = pd.to_numeric(map_df.get('impact_minutes', 0), errors='coerce').abs().fillna(0).clip(lower=0)
+
     fig_map = px.scatter_mapbox(
-        filtered_df,
+        map_df,
         lat='latitude',
         lon='longitude',
         color='impact_minutes',
-        size='impact_minutes',
+        size='map_size',
         hover_name='event_name',
         hover_data=['venue_name', 'category', 'impact_minutes'],
         color_continuous_scale='RdYlGn_r',
