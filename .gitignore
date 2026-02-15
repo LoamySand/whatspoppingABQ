@@ -27,6 +27,7 @@ logs/
 .idea/
 *.swp
 *.swo
+**/*.bak
 
 # OS
 .DS_Store
