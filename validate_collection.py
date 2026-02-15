@@ -43,13 +43,13 @@ try:
         has_issues = False
         for row in cur.fetchall():
             issue, count, impact = row
-            print(f"⚠ {issue}: {count}")
+            print(f" {issue}: {count}")
             print(f"   Impact: {impact}")
             print()
             has_issues = True
         
         if not has_issues:
-            print("✓ No data quality issues found!")
+            print(" No data quality issues found!")
     
     print()
     print()
@@ -80,7 +80,7 @@ try:
                 hour, total, baseline, event, source = row
                 print(f"{str(hour):<20} {total:>8} {baseline:>10} {event:>8} {source:<12}")
         else:
-            print("⚠ No measurements in last 6 hours!")
+            print(" No measurements in last 6 hours!")
     
     print()
     print()
@@ -113,7 +113,7 @@ try:
                 print(f"  Reason: {reason}")
                 print()
         else:
-            print("✓ All upcoming events have traffic data!")
+            print(" All upcoming events have traffic data!")
     
     print()
     print()
@@ -145,7 +145,7 @@ try:
                 print(f"  Status: {status}")
                 print()
         else:
-            print("✓ All venues have good baseline coverage!")
+            print(" All venues have good baseline coverage!")
     
     print()
     print()

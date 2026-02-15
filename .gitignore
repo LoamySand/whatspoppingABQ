@@ -28,6 +28,7 @@ logs/
 *.swp
 *.swo
 **/*.bak
+*.bak
 
 # OS
 .DS_Store

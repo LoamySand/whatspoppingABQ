@@ -30,7 +30,7 @@ try:
         print()
         
         if missing_count == 0:
-            print("✓ All traffic measurements already have day_of_week and hour_of_day!")
+            print(" All traffic measurements already have day_of_week and hour_of_day!")
             exit(0)
     
     # Step 2: Show sample of what will be updated
@@ -85,7 +85,7 @@ try:
         updated_count = cur.rowcount
         conn.commit()
     
-    print(f"✓ Updated {updated_count} traffic measurements")
+    print(f" Updated {updated_count} traffic measurements")
     print()
     
     # Step 5: Verify
@@ -105,7 +105,7 @@ try:
         print()
         
         if remaining > 0:
-            print(f"⚠ {remaining} measurements still missing metadata")
+            print(f" {remaining} measurements still missing metadata")
             print("This might indicate NULL measurement_time values")
             
             # Check for NULL measurement_time
@@ -120,7 +120,7 @@ try:
             if null_times > 0:
                 print(f"  {null_times} measurements have NULL measurement_time")
         else:
-            print("✓ All measurements now have day_of_week and hour_of_day!")
+            print(" All measurements now have day_of_week and hour_of_day!")
     
     # Step 6: Show distribution
     print()

@@ -119,7 +119,7 @@ def measure_traffic_tomtom(origin_lat: float, origin_lng: float,
             'raw_response': json.dumps(data)
         }
         
-        logger.info(f"✓ {point_name or 'Route'}: {traffic_level}, {avg_speed_mph:.1f} mph, delay {delay_minutes:.2f} min ({distance_miles:.2f} mi)")
+        logger.info(f" {point_name or 'Route'}: {traffic_level}, {avg_speed_mph:.1f} mph, delay {delay_minutes:.2f} min ({distance_miles:.2f} mi)")
         
         return measurement
         
@@ -143,7 +143,7 @@ if __name__ == "__main__":
     print()
     
     if not TOMTOM_API_KEY:
-        print("❌ TOMTOM_API_KEY not found in .env file")
+        print(" TOMTOM_API_KEY not found in .env file")
         exit(1)
     
     # Test route: 1 mile north of Isotopes Park to venue
@@ -159,7 +159,7 @@ if __name__ == "__main__":
     )
     
     if measurement:
-        print("✓ TomTom Routing API working!")
+        print(" TomTom Routing API working!")
         print()
         print("Measurement details:")
         print(f"  Distance: {measurement['distance_miles']} miles")
@@ -175,7 +175,7 @@ if __name__ == "__main__":
         print(f"  delay = {measurement['travel_time_seconds']}s - {measurement['typical_time_seconds']}s")
         print(f"  delay = {measurement['travel_time_seconds'] - measurement['typical_time_seconds']}s = {measurement['delay_minutes']:.2f} min")
     else:
-        print("❌ TomTom Routing API test failed")
+        print(" TomTom Routing API test failed")
     
     print()
     print("=" * 70)

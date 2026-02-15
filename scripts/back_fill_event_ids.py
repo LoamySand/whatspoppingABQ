@@ -34,7 +34,7 @@ try:
         print()
         
         if unlinked_count == 0:
-            print("✓ All non-baseline traffic measurements already have event_id!")
+            print(" All non-baseline traffic measurements already have event_id!")
             exit(0)
     
     # Step 2: Match traffic to events
@@ -96,7 +96,7 @@ try:
         print()
         
         if len(matches) == 0:
-            print("⚠ No matches found!")
+            print(" No matches found!")
             print()
             print("Possible reasons:")
             print("  - Traffic measurements are outside ±2 hour window of events")
@@ -151,7 +151,7 @@ try:
         
         conn.commit()
     
-    print(f"✓ Updated {updated_count} traffic measurements")
+    print(f" Updated {updated_count} traffic measurements")
     print()
     
     # Step 5: Verify
@@ -172,10 +172,10 @@ try:
         print()
         
         if remaining > 0:
-            print(f"⚠ {remaining} measurements still unlinked")
+            print(f" {remaining} measurements still unlinked")
             print("These are likely measurements outside event windows")
         else:
-            print("✓ All non-baseline measurements now linked to events!")
+            print(" All non-baseline measurements now linked to events!")
 
 finally:
     conn.close()

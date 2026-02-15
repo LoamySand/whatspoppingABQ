@@ -158,7 +158,7 @@ def collect_traffic_for_event_tomtom(event: dict, num_directions: int = 2) -> in
         
         sleep(0.2)  # Rate limiting
     
-    logger.info(f"✓ Collected {measurements_collected} measurements")
+    logger.info(f" Collected {measurements_collected} measurements")
     
     return measurements_collected
 

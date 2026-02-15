@@ -217,9 +217,9 @@ def collect_baseline_for_group(group_number: int, max_calls: int = 1000):
             logger.error(f"Error collecting baseline for {venue['venue_name']}: {e}")
     
     logger.info("")
-    logger.info(f"✓ Processed {venues_processed}/{len(venues)} venues")
-    logger.info(f"✓ Collected {total_measurements} baseline measurements")
-    logger.info(f"✓ API calls made: {api_calls_made}")
+    logger.info(f" Processed {venues_processed}/{len(venues)} venues")
+    logger.info(f" Collected {total_measurements} baseline measurements")
+    logger.info(f" API calls made: {api_calls_made}")
     
     return {
         'group': group_number,
