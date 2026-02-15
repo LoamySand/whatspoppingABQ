@@ -9,7 +9,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from database.db_utils import get_connection, insert_traffic_measurement
-from collectors.tomtom_traffic_collector import collect_baseline_traffic_for_venue
+from collectors.tomtom_event_traffic_collector import collect_baseline_for_venue_tomtom
 from datetime import datetime
 import logging
 
@@ -60,74 +60,98 @@ def get_all_venues():
 
 def split_venues_into_groups(venues: list) -> tuple:
     """
-    Split venues into two groups dynamically.
+    Split venues into FOUR groups for 4-week rotation.
     
     Args:
         venues: List of all venues
         
     Returns:
-        Tuple of (group1, group2)
+        Tuple of (group1, group2, group3, group4)
     """
-    # Split evenly
-    midpoint = len(venues) // 2
+    total = len(venues)
+    group_size = total // 4
     
-    group1 = venues[:midpoint]
-    group2 = venues[midpoint:]
+    group1 = venues[0:group_size]
+    group2 = venues[group_size:group_size*2]
+    group3 = venues[group_size*2:group_size*3]
+    group4 = venues[group_size*3:]
     
-    return group1, group2
+    return group1, group2, group3, group4
 
 
 def get_current_baseline_group():
     """
     Determine which venue group should be collected this week.
     
-    Week 2 of month (days 8-14): Group 1
-    Week 4 of month (days 22-30): Group 2
-    Other weeks: None
+    Week 1 of month (days 1-7): Group 1
+    Week 2 of month (days 8-14): Group 2
+    Week 3 of month (days 15-21): Group 3
+    Week 4 of month (days 22-31): Group 4
     
     Returns:
-        Group number (1 or 2) or None
+        Group number (1, 2, 3, or 4) or None
     """
     now = datetime.now()
     day_of_month = now.day
     
-    # Week 2: Days 8-14
-    if 8 <= day_of_month <= 14:
+    if 1 <= day_of_month <= 7:
         return 1
-    # Week 4: Days 22-30
-    elif 22 <= day_of_month <= 30:
+    elif 8 <= day_of_month <= 14:
         return 2
+    elif 15 <= day_of_month <= 21:
+        return 3
+    elif 22 <= day_of_month <= 31:
+        return 4
     else:
         return None
 
 
-def should_collect_baseline_now():
+def collect_baseline_for_group(group_number: int, max_calls: int = 1000):
     """
-    Check if we should collect baseline traffic now.
+    Split venues into FOUR groups for 4-week rotation.
+    
+    Args:
+        venues: List of all venues
+        
+    Returns:
+        Tuple of (group1, group2, group3, group4)
+    """
+    total = len(venues)
+    group_size = total // 4
+    
+    group1 = venues[0:group_size]
+    group2 = venues[group_size:group_size*2]
+    group3 = venues[group_size*2:group_size*3]
+    group4 = venues[group_size*3:]
+    
+    return group1, group2, group3, group4
+
+
+def get_current_baseline_group():
+    """
+    Determine which venue group should be collected this week.
+    
+    Week 1 of month (days 1-7): Group 1
+    Week 2 of month (days 8-14): Group 2
+    Week 3 of month (days 15-21): Group 3
+    Week 4 of month (days 22-31): Group 4
     
     Returns:
-        Tuple (should_collect: bool, group: int or None, time_slot: str or None)
+        Group number (1, 2, 3, or 4) or None
     """
-    group = get_current_baseline_group()
+    now = datetime.now()
+    day_of_month = now.day
     
-    if group is None:
-        return False, None, None
-    
-    # Check if we're within 15 minutes of a time slot
-    current_time = datetime.now()
-    current_hour = current_time.hour
-    current_minute = current_time.minute
-    
-    for time_slot in BASELINE_TIME_SLOTS:
-        slot_hour, slot_minute = map(int, time_slot.split(':'))
-        
-        # Calculate difference in minutes
-        diff_minutes = abs((current_hour * 60 + current_minute) - (slot_hour * 60 + slot_minute))
-        
-        if diff_minutes <= 15:
-            return True, group, time_slot
-    
-    return False, group, None
+    if 1 <= day_of_month <= 7:
+        return 1
+    elif 8 <= day_of_month <= 14:
+        return 2
+    elif 15 <= day_of_month <= 21:
+        return 3
+    elif 22 <= day_of_month <= 31:
+        return 4
+    else:
+        return None
 
 
 def collect_baseline_for_group(group_number: int, max_calls: int = 1000):
@@ -135,11 +159,8 @@ def collect_baseline_for_group(group_number: int, max_calls: int = 1000):
     Collect baseline traffic for all venues in a group.
     
     Args:
-        group_number: Group number (1 or 2)
-        max_calls: Maximum API calls to make
-        
-    Returns:
-        Collection statistics
+        group_number: Group number (1, 2, 3, or 4)
+        max_calls: Maximum API calls to make (default 1000 = safe daily limit)
     """
     logger.info(f"Collecting baseline traffic for Group {group_number}")
     
@@ -147,18 +168,13 @@ def collect_baseline_for_group(group_number: int, max_calls: int = 1000):
     all_venues = get_all_venues()
     logger.info(f"Total venues in database: {len(all_venues)}")
     
-    # Split into groups
-    group1, group2 = split_venues_into_groups(all_venues)
+    # Split into 4 groups
+    group1, group2, group3, group4 = split_venues_into_groups(all_venues)
     
-    # Select the appropriate group
-    if group_number == 1:
-        venues = group1
-        logger.info(f"Group 1: Venues 1-{len(group1)} (first half)")
-    else:
-        venues = group2
-        logger.info(f"Group 2: Venues {len(group1)+1}-{len(all_venues)} (second half)")
+    groups = {1: group1, 2: group2, 3: group3, 4: group4}
+    venues = groups[group_number]
     
-    logger.info(f"Collecting baseline for {len(venues)} venues")
+    logger.info(f"Group {group_number}: {len(venues)} venues")
     logger.info("")
     
     total_measurements = 0
@@ -168,14 +184,13 @@ def collect_baseline_for_group(group_number: int, max_calls: int = 1000):
     for i, venue in enumerate(venues, 1):
         logger.info(f"[{i}/{len(venues)}] {venue['venue_name']}")
         
-        # Check API limit
         if api_calls_made >= max_calls:
             logger.warning(f"Reached max API calls ({max_calls}), stopping")
             break
         
         try:
-            # Collect baseline traffic with baseline_type
-            measurements = collect_baseline_traffic_for_venue(
+            # Collect baseline traffic (TomTom Routing)
+            measurements = collect_baseline_for_venue_tomtom(
                 venue['venue_id'],
                 venue['venue_name'],
                 venue['latitude'],
@@ -183,7 +198,6 @@ def collect_baseline_for_group(group_number: int, max_calls: int = 1000):
                 baseline_type='weekly'
             )
             
-            # Insert into database
             for measurement in measurements:
                 try:
                     insert_traffic_measurement(
@@ -203,9 +217,9 @@ def collect_baseline_for_group(group_number: int, max_calls: int = 1000):
             logger.error(f"Error collecting baseline for {venue['venue_name']}: {e}")
     
     logger.info("")
-    logger.info(f" Processed {venues_processed}/{len(venues)} venues")
-    logger.info(f" Collected {total_measurements} baseline measurements")
-    logger.info(f" API calls made: {api_calls_made}")
+    logger.info(f"✓ Processed {venues_processed}/{len(venues)} venues")
+    logger.info(f"✓ Collected {total_measurements} baseline measurements")
+    logger.info(f"✓ API calls made: {api_calls_made}")
     
     return {
         'group': group_number,
@@ -214,7 +228,6 @@ def collect_baseline_for_group(group_number: int, max_calls: int = 1000):
         'measurements_collected': total_measurements,
         'api_calls_made': api_calls_made
     }
-
 
 def run_baseline_collection():
     """

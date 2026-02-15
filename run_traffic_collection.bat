@@ -8,7 +8,7 @@ REM Activate virtual environment (absolute path)
 call C:\Users\lanee\Desktop\whatspoppingABQ\venv\Scripts\activate.bat
 
 REM Run script
-python C:\Users\lanee\Desktop\whatspoppingABQ\scripts\auto_collect_traffic.py >> C:\Users\lanee\Desktop\whatspoppingABQ\traffic_collection.log 2>&1
+python C:\Users\lanee\Desktop\whatspoppingABQ\scripts\auto_collect_traffic_tomtom.py >> C:\Users\lanee\Desktop\whatspoppingABQ\traffic_collection.log 2>&1
 
 REM Deactivate
 call deactivate
