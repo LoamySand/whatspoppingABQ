@@ -1,7 +1,6 @@
-# collectors/tomtom_event_collector.py
 """
-Event traffic collection using TomTom Routing API
-Uses route-based measurements (comparable to Google Maps)
+Event traffic collection using TomTom Flow API at venue location
+Simplified to single point measurement for accuracy
 """
 
 import sys
@@ -9,8 +8,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from database.db_utils import get_connection, insert_traffic_measurement
-from collectors.tomtom_routing_collector import measure_traffic_tomtom
-from collectors.traffic_collector import generate_points_around_location
+from collectors.tomtom_flow_collector import measure_traffic_tomtom
 from datetime import datetime, timedelta
 import logging
 from time import sleep
@@ -108,59 +106,46 @@ def should_collect_now_tomtom(event: dict) -> dict:
     }
 
 
-def collect_traffic_for_event_tomtom(event: dict, num_directions: int = 2) -> int:
+def collect_traffic_for_event_tomtom(event: dict) -> int:
     """
-    Collect traffic measurements for an event using TomTom Routing API.
-    """
-    logger.info(f"Collecting traffic (TomTom Routing) for: {event['event_name']}")
-    logger.info(f"  Event ID: {event['event_id']}")
+    Collect traffic measurement for an event at the venue location.
     
-    # Generate sample points
-    all_points = generate_points_around_location(
-        event['latitude'],
-        event['longitude'],
-        radius_miles=1.0,
-        num_points=4
+    Single point measurement for simplicity and accuracy.
+    """
+    logger.info(f"Collecting traffic (TomTom Flow) for: {event['event_name']}")
+    logger.info(f"  Event ID: {event['event_id']}")
+    logger.info(f"  Location: {event['venue_name']}")
+    
+    # Measure traffic at venue location
+    measurement = measure_traffic_tomtom(
+        origin_lat=event['latitude'],
+        origin_lng=event['longitude'],
+        dest_lat=event['latitude'],
+        dest_lng=event['longitude'],
+        point_name=event['event_name']
     )
     
-    # Use North and South directions
-    selected_points = [p for p in all_points if p['direction'] in ['North', 'South']][:num_directions]
-    
-    logger.info(f"  Sampling {len(selected_points)} directions")
-    
-    measurements_collected = 0
-    
-    for point in selected_points:
-        # Use TomTom Routing API (route from point to venue)
-        measurement = measure_traffic_tomtom(
-            origin_lat=point['lat'],
-            origin_lng=point['lng'],
-            dest_lat=event['latitude'],
-            dest_lng=event['longitude'],
-            point_name=f"{event['event_name']} - {point['direction']}"
-        )
+    if measurement:
+        # Add event context
+        measurement['venue_id'] = event['venue_id']
+        measurement['is_baseline'] = False
         
-        if measurement:
-            # Add event context
-            measurement['venue_id'] = event['venue_id']
-            measurement['is_baseline'] = False
+        try:
+            insert_traffic_measurement(
+                venue_id=event['venue_id'],
+                measurement_time=measurement['measurement_time'],
+                traffic_data=measurement,
+                event_id=event['event_id']
+            )
             
-            try:
-                insert_traffic_measurement(
-                    venue_id=event['venue_id'],
-                    measurement_time=measurement['measurement_time'],
-                    traffic_data=measurement,
-                    event_id=event['event_id']
-                )
-                measurements_collected += 1
-            except Exception as e:
-                logger.error(f"Error inserting measurement: {e}")
-        
-        sleep(0.2)  # Rate limiting
+            logger.info(f"✓ Collected 1 measurement")
+            return 1
+            
+        except Exception as e:
+            logger.error(f"Error inserting measurement: {e}")
+            return 0
     
-    logger.info(f" Collected {measurements_collected} measurements")
-    
-    return measurements_collected
+    return 0
 
 
 def run_tomtom_event_collection(max_calls: int = 50):
@@ -168,7 +153,7 @@ def run_tomtom_event_collection(max_calls: int = 50):
     Main function for TomTom event traffic collection.
     """
     logger.info("=" * 70)
-    logger.info("TomTom Event Traffic Collection (Routing API)")
+    logger.info("TomTom Event Traffic Collection (Flow API - Single Point)")
     logger.info("=" * 70)
     
     events = get_events_needing_collection(window_minutes=30)
@@ -205,11 +190,13 @@ def run_tomtom_event_collection(max_calls: int = 50):
             logger.warning(f"Reached max API calls ({max_calls}), stopping")
             break
         
-        measurements = collect_traffic_for_event_tomtom(event, num_directions=2)
+        measurements = collect_traffic_for_event_tomtom(event)
         
         total_measurements += measurements
         api_calls_made += measurements
         events_collected += 1
+        
+        sleep(0.2)  # Rate limiting
     
     logger.info("")
     logger.info("=" * 70)
@@ -234,7 +221,7 @@ if __name__ == "__main__":
     Test TomTom event collection
     """
     print("=" * 70)
-    print("TomTom Event Traffic Collector Test (Routing API)")
+    print("TomTom Event Traffic Collector Test (Single Point)")
     print("=" * 70)
     print()
     

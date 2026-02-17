@@ -151,10 +151,10 @@ if __name__ == "__main__":
     print()
     
     measurement = measure_traffic_tomtom(
-        origin_lat=35.0881,
-        origin_lng=-106.6044,
-        dest_lat=35.0781,
-        dest_lng=-106.6044,
+        origin_lat=35.188087,
+        origin_lng=-106.613448,
+        dest_lat=35.188942,
+        dest_lng=-106.617023,
         point_name="Test Route"
     )
     
