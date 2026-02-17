@@ -138,7 +138,7 @@ def collect_traffic_for_event_tomtom(event: dict) -> int:
                 event_id=event['event_id']
             )
             
-            logger.info(f"✓ Collected 1 measurement")
+            logger.info(f" Collected 1 measurement")
             return 1
             
         except Exception as e:

@@ -50,7 +50,7 @@ def collect_baseline_for_venue_tomtom(venue_id: int, venue_name: str,
         measurement['is_baseline'] = True
         measurement['baseline_type'] = baseline_type
         
-        logger.info(f"✓ Collected 1 baseline measurement")
+        logger.info(f" Collected 1 baseline measurement")
         
         return [measurement]
     
@@ -74,7 +74,7 @@ if __name__ == "__main__":
         lon=-106.6044
     )
     
-    print(f"\n✓ Collected {len(measurements)} measurements")
+    print(f"\n Collected {len(measurements)} measurements")
     
     if measurements:
         print("\nMeasurement:")

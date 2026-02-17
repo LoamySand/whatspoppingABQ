@@ -201,9 +201,9 @@ def collect_baseline_for_group(group_number: int, max_calls: int = 1000):
             logger.error(f"Error collecting baseline for {venue['venue_name']}: {e}")
     
     logger.info("")
-    logger.info(f"✓ Processed {venues_processed}/{len(venues)} venues")
-    logger.info(f"✓ Collected {total_measurements} baseline measurements")
-    logger.info(f"✓ API calls made: {api_calls_made}")
+    logger.info(f" Processed {venues_processed}/{len(venues)} venues")
+    logger.info(f" Collected {total_measurements} baseline measurements")
+    logger.info(f" API calls made: {api_calls_made}")
     
     return {
         'group': group_number,
@@ -260,7 +260,7 @@ def run_baseline_collection():
             'reason': 'Not collection time'
         }
     
-    logger.info(f"✓ Baseline collection time!")
+    logger.info(f" Baseline collection time!")
     logger.info(f"  Group: {group}")
     logger.info(f"  Time slot: {time_slot}")
     logger.info("")
@@ -321,7 +321,7 @@ if __name__ == "__main__":
     group = get_current_baseline_group()
     
     if group:
-        print(f"✓ Currently in baseline collection week")
+        print(f" Currently in baseline collection week")
         print(f"  Group {group} should be collected")
         print()
         
@@ -344,7 +344,7 @@ if __name__ == "__main__":
     
     print()
     if result['collected']:
-        print(f"✓ Collected baseline data for Group {result['group']}")
+        print(f" Collected baseline data for Group {result['group']}")
         print(f"  Venues processed: {result['venues_processed']}/{result['total_venues']}")
         print(f"  Measurements: {result['measurements_collected']}")
         print(f"  API calls: {result['api_calls_made']}")

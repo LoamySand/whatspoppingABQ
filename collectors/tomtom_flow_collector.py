@@ -121,7 +121,7 @@ def get_traffic_flow_at_point(lat: float, lon: float, point_name: str = None) ->
             'raw_response': json.dumps(data)
         }
         
-        logger.info(f"✓ {point_name or 'Point'}: {traffic_level}, {current_speed:.1f} mph, delay {delay_minutes:.2f} min")
+        logger.info(f" {point_name or 'Point'}: {traffic_level}, {current_speed:.1f} mph, delay {delay_minutes:.2f} min")
         
         return measurement
         
@@ -187,7 +187,7 @@ if __name__ == "__main__":
     print()
     
     if not TOMTOM_API_KEY:
-        print("❌ TOMTOM_API_KEY not found in .env file")
+        print(" TOMTOM_API_KEY not found in .env file")
         exit(1)
     
     # Test at a point
@@ -201,7 +201,7 @@ if __name__ == "__main__":
     )
     
     if measurement:
-        print("✓ TomTom Flow API working!")
+        print(" TomTom Flow API working!")
         print()
         print("Flow data:")
         print(f"  Current speed: {measurement['avg_speed_mph']} mph")
@@ -212,7 +212,7 @@ if __name__ == "__main__":
         print(f"  Traffic level: {measurement['traffic_level']}")
         print(f"  Distance: {measurement.get('distance_miles', 'N/A')} miles")
     else:
-        print("❌ TomTom Flow API test failed")
+        print(" TomTom Flow API test failed")
     
     print()
     print("=" * 70)
