@@ -64,7 +64,6 @@ def query_to_dataframe(query):
     finally:
         conn.close()
 
-# ... rest of your dashboard code
 # Title
 st.title("Albuquerque Event Traffic Impact Dashboard")
 st.markdown("*Analyzing how events affect local traffic patterns*")
