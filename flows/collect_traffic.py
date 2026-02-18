@@ -18,7 +18,12 @@ def collect_event_traffic():
     """
     Task to collect event traffic
     """
+    from datetime import datetime
+    print(f"[TASK] Calling run_tomtom_event_collection at {datetime.now()}")
+    
     stats = run_tomtom_event_collection(max_calls=50)
+    
+    print(f"[TASK] Collection returned: {stats}")
     
     return {
         'events_checked': stats['events_checked'],
@@ -54,6 +59,9 @@ def event_traffic_flow():
     """
     Flow to collect traffic for events (runs every 30 minutes)
     """
+    from datetime import datetime
+    print(f"[START] Event traffic flow started at {datetime.now()}")
+    
     result = collect_event_traffic()
     
     print(f"[OK] Event traffic collection complete")
@@ -61,6 +69,8 @@ def event_traffic_flow():
     print(f"  Events collected: {result['events_collected']}")
     print(f"  Measurements: {result['measurements']}")
     print(f"  API calls: {result['api_calls']}")
+    
+    print(f"[END] Event traffic flow finished at {datetime.now()}")
     
     return result
 

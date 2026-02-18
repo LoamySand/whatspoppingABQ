@@ -41,3 +41,4 @@ config.ini
 
 # Test files
 test_*.py
+tests/

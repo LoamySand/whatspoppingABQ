@@ -14,3 +14,5 @@
 2026-02-17 12:21:41.602694 | Group 3 week | Not at collection time
 2026-02-17 12:29:56.464672 | Group 3 week | Not at collection time
 2026-02-17 12:36:41.975767 | Group 3 week | Not at collection time
+2026-02-17 15:00:00.755923 | Group 3 week | Not at collection time
+2026-02-17 17:00:10.923767 | Group: 3 | Time: 17:00 | Venues: 22/22 | Measurements: 22 | API calls: 22

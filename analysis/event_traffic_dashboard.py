@@ -1,4 +1,3 @@
-
 """
 Interactive Event Traffic Impact Dashboard
 Run with: streamlit run dashboard/event_traffic_dashboard.py
@@ -46,6 +45,8 @@ def load_event_data():
             baseline_measurements,
             event_avg_delay,
             baseline_avg_delay,
+            baseline_avg_speed,
+            event_avg_speed,
             impact_above_baseline,
             impact_level,
             data_quality
@@ -80,7 +81,6 @@ def load_event_data():
 
     return df
 
-
 @st.cache_data(ttl=3600)
 def load_category_data():
     """Load category impact data"""
@@ -92,8 +92,9 @@ def load_category_data():
             events_with_baseline,
             avg_impact_minutes,
             max_impact_minutes,
-            avg_event_delay,
-            avg_baseline_delay,
+            avg_event_speed,
+            avg_baseline_speed,
+            avg_speed_difference,
             pct_high_impact
         FROM category_traffic_impact
         ORDER BY avg_impact_minutes DESC NULLS LAST
@@ -103,8 +104,8 @@ def load_category_data():
     
     # Convert numeric columns
     numeric_cols = ['event_count', 'events_with_baseline', 'avg_impact_minutes', 
-                    'max_impact_minutes', 'avg_event_delay', 'avg_baseline_delay',
-                    'pct_high_impact']
+                    'max_impact_minutes', 'avg_event_speed', 'avg_baseline_speed',
+                    'avg_speed_difference', 'pct_high_impact']
     
     for col in numeric_cols:
         if col in df.columns:
@@ -189,18 +190,32 @@ try:
     if selected_quality != 'All':
         filtered_df = filtered_df[filtered_df['data_quality'] == selected_quality]
     
+    # Ensure event_start_date is in datetime format
+    if 'event_start_date' in filtered_df.columns:
+        filtered_df['event_start_date'] = pd.to_datetime(filtered_df['event_start_date'], errors='coerce')
+
+    # Filter data to only include events from the current month
+    current_month = datetime.now().month
+    current_year = datetime.now().year
+    filtered_df = filtered_df[(filtered_df['event_start_date'].dt.month == current_month) &
+                              (filtered_df['event_start_date'].dt.year == current_year)]
+    
+    # Ensure impact_above_baseline is numeric, non-negative, and has no NaN values
+    if 'impact_above_baseline' in filtered_df.columns:
+        filtered_df['impact_above_baseline'] = pd.to_numeric(filtered_df['impact_above_baseline'], errors='coerce').fillna(0).clip(lower=0)
+
     # Key metrics
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.metric("Total Events Analyzed", len(events_df))
+        st.metric("Total Events Analyzed", len(events_df[events_df['event_measurements'] > 0]))
     
     with col2:
         avg_impact = events_df['impact_above_baseline'].mean()
         st.metric("Avg Impact Above Baseline", f"{avg_impact:.1f} min" if pd.notna(avg_impact) else "N/A")
     
     with col3:
-        complete_data = len(events_df[events_df['data_quality'] == 'complete'])
+        complete_data = len(events_df[(events_df['baseline_measurements'] > 0) & (events_df['event_measurements'] > 0)])
         st.metric("Events with Baseline", complete_data)
     
     with col4:
@@ -234,7 +249,7 @@ try:
     with col2:
         st.subheader(" Data Quality Distribution")
         
-        quality_counts = events_df['data_quality'].value_counts()
+        quality_counts = events_df[events_df['data_quality'] != 'no_event_data']['data_quality'].value_counts()
         
         fig_quality = px.pie(
             values=quality_counts.values,
@@ -242,9 +257,9 @@ try:
             title='Event Data Quality',
             color=quality_counts.index,
             color_discrete_map={
-                'complete': '#90EE90',
-                'partial': '#FFD700',
-                'no_baseline_data': '#FFA500',
+                'excellent': "#57F057",
+                'good': "#F8D640",
+                'fair': "#FF5100",
                 'no_event_data': '#FF4500'
             }
         )
@@ -256,14 +271,14 @@ try:
     
     # Only show events with both measurements
     comparison_df = filtered_df[
-        (filtered_df['event_avg_delay'].notna()) & 
-        (filtered_df['baseline_avg_delay'].notna())
+        (filtered_df['event_avg_speed'].notna()) & 
+        (filtered_df['baseline_avg_speed'].notna())
     ].copy()
     
     if len(comparison_df) > 0:
         # Create comparison chart
-        comparison_df['Event Traffic'] = comparison_df['event_avg_delay']
-        comparison_df['Baseline Traffic'] = comparison_df['baseline_avg_delay']
+        comparison_df['Event Traffic'] = comparison_df['event_avg_speed']
+        comparison_df['Baseline Traffic'] = comparison_df['baseline_avg_speed']
         
         fig_comparison = go.Figure()
         
@@ -284,9 +299,9 @@ try:
         ))
         
         fig_comparison.update_layout(
-            title='Event Delay vs Baseline Delay',
+            title='Event Speed vs Baseline Speed',
             xaxis_title='Event',
-            yaxis_title='Delay (minutes)',
+            yaxis_title='Speed (mph)',
             height=600,
             hovermode='closest'
         )
@@ -299,13 +314,13 @@ try:
     st.subheader("Traffic Impact Over Time")
     
     timeline_df = filtered_df.sort_values('event_start_date')
-    
+
     fig_timeline = px.scatter(
         timeline_df,
         x='event_start_date',
         y='impact_minutes',
         color='category',
-        size='measurement_count',
+        size='impact_above_baseline',  # Use cleaned impact_above_baseline for sizing
         hover_data=['event_name', 'venue_name'],
         title='Event Traffic Impact Timeline',
         labels={'impact_minutes': 'Traffic Delay (minutes)', 'event_start_date': 'Event Date'}
@@ -322,12 +337,8 @@ try:
     
     # Create map with Plotly
     map_df = filtered_df.copy()
-    # Prefer measurement_count for marker sizing when available; fall back to impact magnitude
-    if 'measurement_count' in map_df.columns and map_df['measurement_count'].notna().any():
-        map_df['map_size'] = pd.to_numeric(map_df['measurement_count'], errors='coerce').fillna(0).clip(lower=0)
-    else:
-        # use absolute impact_minutes as fallback size (ensure numeric and non-negative)
-        map_df['map_size'] = pd.to_numeric(map_df.get('impact_minutes', 0), errors='coerce').abs().fillna(0).clip(lower=0)
+    # Use cleaned impact_above_baseline for marker sizing
+    map_df['map_size'] = map_df['impact_above_baseline']
 
     fig_map = px.scatter_mapbox(
         map_df,
@@ -342,19 +353,19 @@ try:
         height=500,
         title='Events by Location and Impact'
     )
-    
+
     fig_map.update_layout(
         mapbox_style="open-street-map",
         mapbox_center={"lat": 35.0844, "lon": -106.6504}  # Albuquerque center
     )
-    
+
     st.plotly_chart(fig_map, use_container_width=True)
     
     # Top events table
     st.subheader("Top Impact Events")
     
-    top_events = filtered_df.nlargest(10, 'impact_minutes')[
-        ['event_name', 'venue_name', 'category', 'event_start_date', 'impact_minutes', 'impact_level']
+    top_events = filtered_df.nlargest(10, 'impact_above_baseline')[
+        ['event_name', 'venue_name', 'category', 'event_start_date', 'impact_above_baseline', 'impact_level']
     ]
     
     # Style the dataframe
@@ -365,7 +376,7 @@ try:
             "venue_name": "Venue",
             "category": "Category",
             "event_start_date": st.column_config.DateColumn("Date"),
-            "impact_minutes": st.column_config.NumberColumn("Impact (min)", format="%.1f"),
+            "impact_above_baseline": st.column_config.NumberColumn("Impact Above Baseline", format="%.1f"),
             "impact_level": "Level"
         },
         hide_index=True,

@@ -152,9 +152,13 @@ def run_tomtom_event_collection(max_calls: int = 50):
     """
     Main function for TomTom event traffic collection.
     """
+    from datetime import datetime
     logger.info("=" * 70)
-    logger.info("TomTom Event Traffic Collection (Flow API - Single Point)")
+    logger.info(f"CALLED: run_tomtom_event_collection at {datetime.now()}")
+    logger.info(f"Max calls allowed: {max_calls}")
     logger.info("=" * 70)
+    
+    # ... rest of function
     
     events = get_events_needing_collection(window_minutes=30)
     
