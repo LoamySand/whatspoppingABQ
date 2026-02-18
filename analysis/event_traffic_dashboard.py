@@ -17,12 +17,12 @@ import psycopg2
 # Page config
 st.set_page_config(
     page_title="ABQ Event Traffic Dashboard",
-    page_icon="🚗",
+    page_icon="",
     layout="wide"
 )
 
 # Title
-st.title("🚗 Albuquerque Event Traffic Impact Dashboard")
+st.title(" Albuquerque Event Traffic Impact Dashboard")
 st.markdown("*Analyzing how events affect local traffic patterns*")
 st.markdown("---")
 # Database connection helper
@@ -247,7 +247,7 @@ try:
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("📊 Impact Above Baseline by Category")
+        st.subheader(" Impact Above Baseline by Category")
         
         # Filter out categories with no baseline data
         cat_with_baseline = category_df[category_df['avg_impact_minutes'].notna()]
@@ -269,7 +269,7 @@ try:
             st.info("No category data with baseline available")
     
     with col2:
-        st.subheader("📈 Data Quality Distribution")
+        st.subheader(" Data Quality Distribution")
         
         quality_counts = events_df[events_df['data_quality'] != 'no_event_data']['data_quality'].value_counts()
         
@@ -293,7 +293,7 @@ try:
             st.info("No quality data available")
     
     # Event vs Baseline comparison
-    st.subheader("🚗 Event Traffic vs Baseline")
+    st.subheader(" Event Traffic vs Baseline")
     
     # Only show events with both measurements
     comparison_df = filtered_df[
@@ -333,7 +333,7 @@ try:
         st.info("No events with both event and baseline data available for comparison")
     
     # Timeline chart
-    st.subheader("📅 Traffic Impact Over Time")
+    st.subheader(" Traffic Impact Over Time")
     
     timeline_df = filtered_df.sort_values('event_start_date')
 
@@ -358,7 +358,7 @@ try:
         st.info("No timeline data available for selected filters")
     
     # Map
-    st.subheader("🗺️ Event Locations & Traffic Impact")
+    st.subheader(" Event Locations & Traffic Impact")
     
     map_df = filtered_df.copy()
     map_df['map_size'] = map_df['impact_above_baseline']
@@ -388,31 +388,53 @@ try:
         st.info("No map data available for selected filters")
     
     # Top events table
-    st.subheader("🏆 Top Impact Events")
-    
+    st.subheader("Top Impact Events")
+
     if len(filtered_df) > 0:
         top_events = filtered_df.nlargest(10, 'impact_above_baseline')[
             ['event_name', 'venue_name', 'category', 'event_start_date', 'impact_above_baseline', 'impact_level']
         ]
         
-        st.dataframe(
-            top_events,
-            column_config={
-                "event_name": "Event",
-                "venue_name": "Venue",
-                "category": "Category",
-                "event_start_date": st.column_config.DateColumn("Date"),
-                "impact_above_baseline": st.column_config.NumberColumn("Impact (min)", format="%.1f"),
-                "impact_level": "Level"
-            },
-            hide_index=True,
-            use_container_width=True
-        )
+        # Format the date column
+        top_events['event_start_date'] = pd.to_datetime(top_events['event_start_date']).dt.strftime('%Y-%m-%d')
+        
+        # Rename columns for display
+        top_events = top_events.rename(columns={
+            'event_name': 'Event',
+            'venue_name': 'Venue',
+            'category': 'Category',
+            'event_start_date': 'Date',
+            'impact_above_baseline': 'Impact (min)',
+            'impact_level': 'Level'
+        })
+        
+        # Round impact
+        top_events['Impact (min)'] = top_events['Impact (min)'].round(1)
+        
+        # Check Streamlit version
+        try:
+            # Streamlit >= 1.23 (has column_config)
+            st.dataframe(
+                top_events,
+                column_config={
+                    "Event": st.column_config.TextColumn("Event"),
+                    "Venue": st.column_config.TextColumn("Venue"),
+                    "Category": st.column_config.TextColumn("Category"),
+                    "Date": st.column_config.TextColumn("Date"),
+                    "Impact (min)": st.column_config.NumberColumn("Impact (min)", format="%.1f"),
+                    "Level": st.column_config.TextColumn("Level")
+                },
+                hide_index=True,
+                use_container_width=True
+            )
+        except AttributeError:
+            # Streamlit < 1.23 (no column_config)
+            st.dataframe(top_events, use_container_width=True)
     else:
         st.info("No events match the selected filters")
     
     # Detailed data (expandable)
-    with st.expander("📋 View All Event Data"):
+    with st.expander(" View All Event Data"):
         st.dataframe(filtered_df, use_container_width=True)
     
     # Footer

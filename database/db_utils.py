@@ -123,10 +123,10 @@ def test_connection() -> bool:
     try:
         conn = get_connection()
         conn.close()
-        logger.info("✓ Database connection test successful")
+        logger.info(" Database connection test successful")
         return True
     except Exception as e:
-        logger.error(f"✗ Database connection test failed: {e}")
+        logger.error(f" Database connection test failed: {e}")
         return False
 
 def insert_events(events: List[Dict]) -> int:
@@ -613,9 +613,9 @@ if __name__ == "__main__":
     print("Test 1: Database Connection")
     print("-" * 60)
     if test_connection():
-        print("✓ Connection successful")
+        print(" Connection successful")
     else:
-        print("✗ Connection failed")
+        print(" Connection failed")
         exit(1)
     print()
     
