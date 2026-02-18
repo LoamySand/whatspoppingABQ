@@ -11,16 +11,60 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from database.db_utils import get_connection, query_to_dataframe
 from datetime import datetime
 
 # Page config
 st.set_page_config(
     page_title="ABQ Event Traffic Dashboard",
-    page_icon="",
+    page_icon="🚗",
     layout="wide"
 )
 
+# Database connection
+@st.cache_resource
+def get_db_connection():
+    """Get database connection with Streamlit secrets support"""
+    import psycopg2
+    
+    # Try Streamlit secrets first
+    try:
+        if hasattr(st, 'secrets') and 'DB_HOST' in st.secrets:
+            return psycopg2.connect(
+                host=st.secrets["DB_HOST"],
+                port=st.secrets.get("DB_PORT", 5432),
+                database=st.secrets["DB_NAME"],
+                user=st.secrets["DB_USER"],
+                password=st.secrets["DB_PASSWORD"],
+                sslmode='require'
+            )
+    except:
+        pass
+    
+    # Fallback to local
+    import os
+    from dotenv import load_dotenv
+    load_dotenv()
+    
+    return psycopg2.connect(
+        host=os.getenv('DB_HOST'),
+        port=os.getenv('DB_PORT', 5432),
+        database=os.getenv('DB_NAME'),
+        user=os.getenv('DB_USER'),
+        password=os.getenv('DB_PASSWORD'),
+        sslmode='require' if 'supabase' in os.getenv('DB_HOST', '') else 'prefer'
+    )
+
+@st.cache_data(ttl=3600)
+def query_to_dataframe(query):
+    """Execute query and return DataFrame"""
+    conn = get_db_connection()
+    try:
+        df = pd.read_sql(query, conn)
+        return df
+    finally:
+        conn.close()
+
+# ... rest of your dashboard code
 # Title
 st.title("Albuquerque Event Traffic Impact Dashboard")
 st.markdown("*Analyzing how events affect local traffic patterns*")
