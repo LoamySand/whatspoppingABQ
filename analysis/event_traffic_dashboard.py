@@ -12,6 +12,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
+import psycopg2
 
 # Page config
 st.set_page_config(
@@ -20,56 +21,56 @@ st.set_page_config(
     layout="wide"
 )
 
-# Database connection
-@st.cache_resource
+# Title
+st.title("🚗 Albuquerque Event Traffic Impact Dashboard")
+st.markdown("*Analyzing how events affect local traffic patterns*")
+st.markdown("---")
+# Database connection helper
 def get_db_connection():
-    """Get database connection with Streamlit secrets support"""
-    import psycopg2
+    """Create a database connection (fresh each time)"""
+    from dotenv import load_dotenv
     
-    # Try Streamlit secrets first
+    # Try Streamlit secrets first (deployed)
     try:
         if hasattr(st, 'secrets') and 'DB_HOST' in st.secrets:
             return psycopg2.connect(
                 host=st.secrets["DB_HOST"],
-                port=st.secrets.get("DB_PORT", 5432),
+                port=int(st.secrets.get("DB_PORT", 6543)),
                 database=st.secrets["DB_NAME"],
                 user=st.secrets["DB_USER"],
                 password=st.secrets["DB_PASSWORD"],
-                sslmode='require'
+                sslmode='require',
+                connect_timeout=10
             )
-    except:
+    except (AttributeError, FileNotFoundError, KeyError):
         pass
     
-    # Fallback to local
-    import os
-    from dotenv import load_dotenv
+    # Fallback to .env (local development)
     load_dotenv()
     
     return psycopg2.connect(
-        host=os.getenv('DB_HOST'),
-        port=os.getenv('DB_PORT', 5432),
-        database=os.getenv('DB_NAME'),
-        user=os.getenv('DB_USER'),
+        host=os.getenv('DB_HOST', 'localhost'),
+        port=int(os.getenv('DB_PORT', '5432')),
+        database=os.getenv('DB_NAME', 'postgres'),
+        user=os.getenv('DB_USER', 'postgres'),
         password=os.getenv('DB_PASSWORD'),
-        sslmode='require' if 'supabase' in os.getenv('DB_HOST', '') else 'prefer'
+        sslmode='require' if 'supabase' in os.getenv('DB_HOST', '') else 'prefer',
+        connect_timeout=10
     )
 
-@st.cache_data(ttl=3600)
+
 def query_to_dataframe(query):
     """Execute query and return DataFrame"""
-    conn = get_db_connection()
+    conn = None
     try:
+        conn = get_db_connection()
         df = pd.read_sql(query, conn)
         return df
     finally:
-        conn.close()
+        if conn and not conn.closed:
+            conn.close()
 
-# Title
-st.title("Albuquerque Event Traffic Impact Dashboard")
-st.markdown("*Analyzing how events affect local traffic patterns*")
-st.markdown("---")
-
-# Load data
+# Load data - ONLY cache the data, not the connection
 @st.cache_data(ttl=3600)
 def load_event_data():
     """Load event impact data from database"""
@@ -94,8 +95,6 @@ def load_event_data():
             impact_level,
             data_quality
         FROM event_impact_detail
-       -- WHERE data_quality IN ('complete', 'partial')
-       --   AND event_measurements > 0
         ORDER BY event_start_date DESC
     """
     
@@ -103,24 +102,19 @@ def load_event_data():
     
     # Convert Decimal to float
     numeric_cols = ['latitude', 'longitude', 'event_avg_delay', 
-                    'baseline_avg_delay', 'impact_above_baseline']
+                    'baseline_avg_delay', 'impact_above_baseline',
+                    'event_avg_speed', 'baseline_avg_speed']
     
     for col in numeric_cols:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce')
-    # Derive commonly-used dashboard columns for compatibility
-    # 'impact_minutes' expected by visualizations -> use 'impact_above_baseline' if present
+    
+    # Derive commonly-used dashboard columns
     if 'impact_above_baseline' in df.columns:
         df['impact_minutes'] = pd.to_numeric(df['impact_above_baseline'], errors='coerce')
-    elif 'event_avg_delay' in df.columns and 'baseline_avg_delay' in df.columns:
-        df['impact_minutes'] = pd.to_numeric(df['event_avg_delay'], errors='coerce') - pd.to_numeric(df['baseline_avg_delay'], errors='coerce')
-
-    # 'measurement_count' used for bubble sizes -> map from 'event_measurements' if available
+    
     if 'event_measurements' in df.columns:
-        df['measurement_count'] = pd.to_numeric(df['event_measurements'], errors='coerce')
-    # Ensure measurement_count is numeric and non-null for plotting sizes
-    if 'measurement_count' in df.columns:
-        df['measurement_count'] = pd.to_numeric(df['measurement_count'], errors='coerce').fillna(0).clip(lower=0)
+        df['measurement_count'] = pd.to_numeric(df['event_measurements'], errors='coerce').fillna(0).clip(lower=0)
 
     return df
 
@@ -156,7 +150,6 @@ def load_category_data():
     
     return df
 
-
 @st.cache_data(ttl=3600)
 def load_baseline_patterns():
     """Load baseline traffic patterns"""
@@ -186,7 +179,6 @@ def load_baseline_patterns():
     return df
 
 # Load data
-# After loading data
 try:
     events_df = load_event_data()
     category_df = load_category_data()
@@ -204,27 +196,11 @@ try:
     selected_impact = st.sidebar.selectbox("Impact Level", impact_levels)
     
     # Data quality filter
-    quality_options = ['All', 'complete', 'partial']
+    quality_options = ['All'] + sorted(events_df['data_quality'].unique().tolist())
     selected_quality = st.sidebar.selectbox("Data Quality", quality_options)
     
     # Filter data
     filtered_df = events_df.copy()
-
-# Debug: inspect filtered_df (toggleable)
-    if st.sidebar.checkbox("Show debug: filtered_df"):
-        st.markdown("**filtered_df diagnostics**")
-        st.write("shape:", filtered_df.shape)
-        st.write("columns:", filtered_df.columns.tolist())
-        st.write("dtypes:")
-        st.write(filtered_df.dtypes)
-        st.write("non-null counts:")
-        st.write(filtered_df.count())
-        st.write("null counts:")
-        st.write(filtered_df.isna().sum())
-        if filtered_df.empty:
-            st.error("filtered_df is EMPTY — no rows match current filters")
-        else:
-            st.dataframe(filtered_df.head(50), use_container_width=True)
 
     if selected_category != 'All':
         filtered_df = filtered_df[filtered_df['category'] == selected_category]
@@ -243,7 +219,7 @@ try:
     filtered_df = filtered_df[(filtered_df['event_start_date'].dt.month == current_month) &
                               (filtered_df['event_start_date'].dt.year == current_year)]
     
-    # Ensure impact_above_baseline is numeric, non-negative, and has no NaN values
+    # Ensure impact_above_baseline is numeric and non-negative
     if 'impact_above_baseline' in filtered_df.columns:
         filtered_df['impact_above_baseline'] = pd.to_numeric(filtered_df['impact_above_baseline'], errors='coerce').fillna(0).clip(lower=0)
 
@@ -271,46 +247,53 @@ try:
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader(" Impact Above Baseline by Category")
+        st.subheader("📊 Impact Above Baseline by Category")
         
         # Filter out categories with no baseline data
         cat_with_baseline = category_df[category_df['avg_impact_minutes'].notna()]
         
-        fig_category = px.bar(
-            cat_with_baseline,
-            x='category',
-            y='avg_impact_minutes',
-            title='Average Traffic Impact vs Baseline',
-            labels={'avg_impact_minutes': 'Minutes Above Baseline', 'category': 'Category'},
-            color='avg_impact_minutes',
-            color_continuous_scale='RdYlGn_r',
-            hover_data=['events_with_baseline', 'pct_high_impact']
-        )
-        fig_category.update_layout(xaxis_tickangle=-45, height=400)
-        st.plotly_chart(fig_category, use_container_width=True)
+        if len(cat_with_baseline) > 0:
+            fig_category = px.bar(
+                cat_with_baseline,
+                x='category',
+                y='avg_impact_minutes',
+                title='Average Traffic Impact vs Baseline',
+                labels={'avg_impact_minutes': 'Minutes Above Baseline', 'category': 'Category'},
+                color='avg_impact_minutes',
+                color_continuous_scale='RdYlGn_r',
+                hover_data=['events_with_baseline', 'pct_high_impact']
+            )
+            fig_category.update_layout(xaxis_tickangle=-45, height=400)
+            st.plotly_chart(fig_category, use_container_width=True)
+        else:
+            st.info("No category data with baseline available")
     
     with col2:
-        st.subheader(" Data Quality Distribution")
+        st.subheader("📈 Data Quality Distribution")
         
         quality_counts = events_df[events_df['data_quality'] != 'no_event_data']['data_quality'].value_counts()
         
-        fig_quality = px.pie(
-            values=quality_counts.values,
-            names=quality_counts.index,
-            title='Event Data Quality',
-            color=quality_counts.index,
-            color_discrete_map={
-                'excellent': "#57F057",
-                'good': "#F8D640",
-                'fair': "#FF5100",
-                'no_event_data': '#FF4500'
-            }
-        )
-        fig_quality.update_layout(height=400)
-        st.plotly_chart(fig_quality, use_container_width=True)
+        if len(quality_counts) > 0:
+            fig_quality = px.pie(
+                values=quality_counts.values,
+                names=quality_counts.index,
+                title='Event Data Quality',
+                color=quality_counts.index,
+                color_discrete_map={
+                    'excellent': "#57F057",
+                    'good': "#F8D640",
+                    'fair': "#FF5100",
+                    'poor': "#FF0000",
+                    'no_event_data': '#FF4500'
+                }
+            )
+            fig_quality.update_layout(height=400)
+            st.plotly_chart(fig_quality, use_container_width=True)
+        else:
+            st.info("No quality data available")
     
     # Event vs Baseline comparison
-    st.subheader(" Event Traffic vs Baseline")
+    st.subheader("🚗 Event Traffic vs Baseline")
     
     # Only show events with both measurements
     comparison_df = filtered_df[
@@ -319,24 +302,20 @@ try:
     ].copy()
     
     if len(comparison_df) > 0:
-        # Create comparison chart
-        comparison_df['Event Traffic'] = comparison_df['event_avg_speed']
-        comparison_df['Baseline Traffic'] = comparison_df['baseline_avg_speed']
-        
         fig_comparison = go.Figure()
         
         fig_comparison.add_trace(go.Scatter(
             x=comparison_df['event_name'],
-            y=comparison_df['Baseline Traffic'],
-            name='Baseline (Same Day/Hour)',
+            y=comparison_df['baseline_avg_speed'],
+            name='Baseline Speed',
             mode='markers',
             marker=dict(size=10, color='green', symbol='circle')
         ))
         
         fig_comparison.add_trace(go.Scatter(
             x=comparison_df['event_name'],
-            y=comparison_df['Event Traffic'],
-            name='Event Traffic',
+            y=comparison_df['event_avg_speed'],
+            name='Event Speed',
             mode='markers',
             marker=dict(size=10, color='red', symbol='diamond')
         ))
@@ -354,80 +333,86 @@ try:
         st.info("No events with both event and baseline data available for comparison")
     
     # Timeline chart
-    st.subheader("Traffic Impact Over Time")
+    st.subheader("📅 Traffic Impact Over Time")
     
     timeline_df = filtered_df.sort_values('event_start_date')
 
-    fig_timeline = px.scatter(
-        timeline_df,
-        x='event_start_date',
-        y='impact_minutes',
-        color='category',
-        size='impact_above_baseline',  # Use cleaned impact_above_baseline for sizing
-        hover_data=['event_name', 'venue_name'],
-        title='Event Traffic Impact Timeline',
-        labels={'impact_minutes': 'Traffic Delay (minutes)', 'event_start_date': 'Event Date'}
-    )
-    fig_timeline.add_hline(y=2, line_dash="dash", line_color="orange", 
-                           annotation_text="Moderate Impact Threshold")
-    fig_timeline.add_hline(y=5, line_dash="dash", line_color="red",
-                           annotation_text="High Impact Threshold")
-    fig_timeline.update_layout(height=400)
-    st.plotly_chart(fig_timeline, use_container_width=True)
+    if len(timeline_df) > 0:
+        fig_timeline = px.scatter(
+            timeline_df,
+            x='event_start_date',
+            y='impact_minutes',
+            color='category',
+            size='impact_above_baseline',
+            hover_data=['event_name', 'venue_name'],
+            title='Event Traffic Impact Timeline',
+            labels={'impact_minutes': 'Traffic Delay (minutes)', 'event_start_date': 'Event Date'}
+        )
+        fig_timeline.add_hline(y=2, line_dash="dash", line_color="orange", 
+                               annotation_text="Moderate Impact Threshold")
+        fig_timeline.add_hline(y=5, line_dash="dash", line_color="red",
+                               annotation_text="High Impact Threshold")
+        fig_timeline.update_layout(height=400)
+        st.plotly_chart(fig_timeline, use_container_width=True)
+    else:
+        st.info("No timeline data available for selected filters")
     
     # Map
-    st.subheader("Event Locations & Traffic Impact")
+    st.subheader("🗺️ Event Locations & Traffic Impact")
     
-    # Create map with Plotly
     map_df = filtered_df.copy()
-    # Use cleaned impact_above_baseline for marker sizing
     map_df['map_size'] = map_df['impact_above_baseline']
 
-    fig_map = px.scatter_mapbox(
-        map_df,
-        lat='latitude',
-        lon='longitude',
-        color='impact_minutes',
-        size='map_size',
-        hover_name='event_name',
-        hover_data=['venue_name', 'category', 'impact_minutes'],
-        color_continuous_scale='RdYlGn_r',
-        zoom=10,
-        height=500,
-        title='Events by Location and Impact'
-    )
+    if len(map_df) > 0:
+        fig_map = px.scatter_mapbox(
+            map_df,
+            lat='latitude',
+            lon='longitude',
+            color='impact_minutes',
+            size='map_size',
+            hover_name='event_name',
+            hover_data=['venue_name', 'category', 'impact_minutes'],
+            color_continuous_scale='RdYlGn_r',
+            zoom=10,
+            height=500,
+            title='Events by Location and Impact'
+        )
 
-    fig_map.update_layout(
-        mapbox_style="open-street-map",
-        mapbox_center={"lat": 35.0844, "lon": -106.6504}  # Albuquerque center
-    )
+        fig_map.update_layout(
+            mapbox_style="open-street-map",
+            mapbox_center={"lat": 35.0844, "lon": -106.6504}
+        )
 
-    st.plotly_chart(fig_map, use_container_width=True)
+        st.plotly_chart(fig_map, use_container_width=True)
+    else:
+        st.info("No map data available for selected filters")
     
     # Top events table
-    st.subheader("Top Impact Events")
+    st.subheader("🏆 Top Impact Events")
     
-    top_events = filtered_df.nlargest(10, 'impact_above_baseline')[
-        ['event_name', 'venue_name', 'category', 'event_start_date', 'impact_above_baseline', 'impact_level']
-    ]
-    
-    # Style the dataframe
-    st.dataframe(
-        top_events,
-        column_config={
-            "event_name": "Event",
-            "venue_name": "Venue",
-            "category": "Category",
-            "event_start_date": st.column_config.DateColumn("Date"),
-            "impact_above_baseline": st.column_config.NumberColumn("Impact Above Baseline", format="%.1f"),
-            "impact_level": "Level"
-        },
-        hide_index=True,
-        use_container_width=True
-    )
+    if len(filtered_df) > 0:
+        top_events = filtered_df.nlargest(10, 'impact_above_baseline')[
+            ['event_name', 'venue_name', 'category', 'event_start_date', 'impact_above_baseline', 'impact_level']
+        ]
+        
+        st.dataframe(
+            top_events,
+            column_config={
+                "event_name": "Event",
+                "venue_name": "Venue",
+                "category": "Category",
+                "event_start_date": st.column_config.DateColumn("Date"),
+                "impact_above_baseline": st.column_config.NumberColumn("Impact (min)", format="%.1f"),
+                "impact_level": "Level"
+            },
+            hide_index=True,
+            use_container_width=True
+        )
+    else:
+        st.info("No events match the selected filters")
     
     # Detailed data (expandable)
-    with st.expander("View All Event Data"):
+    with st.expander("📋 View All Event Data"):
         st.dataframe(filtered_df, use_container_width=True)
     
     # Footer
@@ -436,4 +421,9 @@ try:
 
 except Exception as e:
     st.error(f"Error loading data: {e}")
-    st.info("Make sure you have event and traffic data in the database. Run sample data generation if needed.")
+    
+    import traceback
+    with st.expander("Error Details"):
+        st.code(traceback.format_exc())
+    
+    st.info("Troubleshooting: Check database connection settings in Streamlit Cloud secrets")
