@@ -78,27 +78,33 @@ if __name__ == "__main__":
         # Baseline traffic - 6 times per day
         baseline_traffic_flow.to_deployment(
             name="baseline-7am",
-            cron="0 7 * * *"
+            cron="0 7 * * *",
+            timezone="America/Denver"
         ),
         baseline_traffic_flow.to_deployment(
             name="baseline-12pm",
-            cron="0 12 * * *"
+            cron="0 12 * * *",
+            timezone="America/Denver"
         ),
         baseline_traffic_flow.to_deployment(
             name="baseline-5pm",
-            cron="0 17 * * *"
+            cron="0 17 * * *",
+            timezone="America/Denver"
         ),
         baseline_traffic_flow.to_deployment(
             name="baseline-7pm",
-            cron="0 19 * * *"
+            cron="0 19 * * *",
+            timezone="America/Denver"
         ),
         baseline_traffic_flow.to_deployment(
             name="baseline-9pm",
-            cron="0 21 * * *"
+            cron="0 21 * * *",
+            timezone="America/Denver"
         ),
         baseline_traffic_flow.to_deployment(
             name="baseline-11pm",
-            cron="0 23 * * *"
+            cron="0 23 * * *",
+            timezone="America/Denver"
         ),
         
         # ===== EVENT SCRAPING =====
@@ -106,6 +112,7 @@ if __name__ == "__main__":
         # Event scraping - weekly on Mondays at 9am
         event_ingestion_flow_enhanced.to_deployment(
             name="event-scraping-weekly",
-            cron="0 9 * * 1"  # Monday 9am
+            cron="0 9 * * 1",  # Monday 9am
+            timezone="America/Denver"
         )
     )

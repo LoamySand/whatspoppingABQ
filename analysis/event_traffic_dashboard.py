@@ -30,6 +30,12 @@ def get_db_connection():
     """Create a database connection (fresh each time)"""
     from dotenv import load_dotenv
     
+    # Ensure .env is loaded fresh
+    import os as os_module
+    project_root = os_module.path.dirname(os_module.path.dirname(os_module.path.abspath(__file__)))
+    env_path = os_module.path.join(project_root, '.env')
+    load_dotenv(dotenv_path=env_path, override=True)
+    
     # Try Streamlit secrets first (deployed)
     try:
         if hasattr(st, 'secrets') and 'DB_HOST' in st.secrets:
@@ -46,8 +52,6 @@ def get_db_connection():
         pass
     
     # Fallback to .env (local development)
-    load_dotenv()
-    
     return psycopg2.connect(
         host=os.getenv('DB_HOST', 'localhost'),
         port=int(os.getenv('DB_PORT', '5432')),

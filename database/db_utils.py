@@ -13,7 +13,11 @@ import logging
 from typing import List, Dict, Optional
 
 # Load environment variables from .env file
-load_dotenv()
+# Find the project root (.env location) relative to this file
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+env_path = os.path.join(project_root, '.env')
+load_dotenv(dotenv_path=env_path, override=True)
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -34,6 +38,11 @@ def get_connection():
     Raises:
         psycopg2.Error: If connection fails
     """
+    
+    # Ensure .env is loaded fresh (important for subprocesses)
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    env_path = os.path.join(project_root, '.env')
+    load_dotenv(dotenv_path=env_path, override=True)
     
     # Try Streamlit secrets first (for deployed app)
     try:
@@ -59,6 +68,12 @@ def get_connection():
     database = os.getenv('DB_NAME', 'postgres')
     user = os.getenv('DB_USER', 'postgres')
     password = os.getenv('DB_PASSWORD')
+    
+    # DEBUG: Log connection details
+    logger.info(f"[CONNECTION] Host: {host}")
+    logger.info(f"[CONNECTION] Port: {port}")
+    logger.info(f"[CONNECTION] Database: {database}")
+    logger.info(f"[CONNECTION] User: {user}")
     
     # Determine if using Supabase
     is_supabase = 'supabase' in host
@@ -382,6 +397,77 @@ def get_category_counts() -> Dict[str, int]:
                 results[row[0]] = row[1]
             
             return results
+    finally:
+        if conn and not conn.closed:
+            conn.close()
+
+
+def get_event_statistics() -> Dict:
+    """Get comprehensive statistics about events in database."""
+    conn = None
+    try:
+        conn = get_connection()
+        with conn.cursor() as cur:
+            # Total events
+            cur.execute("SELECT COUNT(*) FROM events")
+            total_events = cur.fetchone()[0]
+            
+            # Multi-day events
+            cur.execute("SELECT COUNT(*) FROM events WHERE is_multi_day = true")
+            multi_day_count = cur.fetchone()[0]
+            
+            # Events by category
+            cur.execute("""
+                SELECT category, COUNT(*) as count
+                FROM events
+                WHERE category IS NOT NULL
+                GROUP BY category
+                ORDER BY count DESC
+            """)
+            category_counts = {row[0]: row[1] for row in cur.fetchall()}
+            
+            # Events by venue
+            cur.execute("""
+                SELECT venue_name, COUNT(*) as count
+                FROM events
+                WHERE venue_name IS NOT NULL
+                GROUP BY venue_name
+                ORDER BY count DESC
+                LIMIT 10
+            """)
+            top_venues = {row[0]: row[1] for row in cur.fetchall()}
+            
+            return {
+                'total_events': total_events,
+                'multi_day_events': multi_day_count,
+                'by_category': category_counts,
+                'top_venues': top_venues
+            }
+    finally:
+        if conn and not conn.closed:
+            conn.close()
+
+
+def get_multi_day_events() -> List[Dict]:
+    """Get all multi-day events."""
+    conn = None
+    try:
+        conn = get_connection()
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT event_id, event_name, venue_name, event_start_date, 
+                       event_end_date, category
+                FROM events
+                WHERE is_multi_day = true
+                ORDER BY event_start_date DESC
+            """)
+            
+            columns = [desc[0] for desc in cur.description]
+            events = []
+            for row in cur.fetchall():
+                events.append(dict(zip(columns, row)))
+            
+            return events
     finally:
         if conn and not conn.closed:
             conn.close()
