@@ -17,6 +17,7 @@ build/
 # Logs
 *.log
 logs/
+baseline_collection_log.txt
 
 # Database
 *.db
