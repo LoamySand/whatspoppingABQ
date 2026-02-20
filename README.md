@@ -504,7 +504,7 @@ MIT License - See [LICENSE](LICENSE) file
 
 **Lane Boyd**
 
-Data Engineer | ETL Pipeline Specialist | Cloud Architecture
+Focus: Data Engineering
 
 - **Portfolio:** [whatspoppingabq.streamlit.app](https://whatspoppingabq.streamlit.app)
 - **GitHub:** [@LoamySand](https://github.com/LoamySand)
