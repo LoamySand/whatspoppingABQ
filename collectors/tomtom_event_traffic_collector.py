@@ -40,11 +40,8 @@ def get_events_needing_collection(window_minutes: int = 30) -> list:
                 JOIN venue_locations v ON e.venue_id = v.venue_id
                 WHERE e.event_start_date = CURRENT_DATE
                   AND e.event_start_time IS NOT NULL
-                  AND e.event_start_time BETWEEN 
-                      CURRENT_TIME - INTERVAL '2 hours' AND 
-                      CURRENT_TIME + INTERVAL '2 hours %s minutes'
                 ORDER BY e.event_start_time
-            """ % window_minutes)
+            """)
             
             events = []
             for row in cur.fetchall():

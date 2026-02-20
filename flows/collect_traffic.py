@@ -83,7 +83,7 @@ def baseline_traffic_flow():
     result = collect_baseline_traffic()
     
     if result.get('skipped'):
-        print(f"⏭ Baseline collection skipped: {result['reason']}")
+        print(f"Baseline collection skipped: {result['reason']}")
     else:
         print(f"[OK] Baseline traffic collection complete")
         print(f"  Group: {result['group']}")

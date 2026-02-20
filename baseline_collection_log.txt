@@ -22,3 +22,13 @@
 2026-02-18 13:00:00.556974 | Group 3 week | Not at collection time
 2026-02-18 15:00:02.019817 | Group 3 week | Not at collection time
 2026-02-18 17:00:11.922940 | Group: 3 | Time: 17:00 | Venues: 22/22 | Measurements: 22 | API calls: 22
+2026-02-18 22:00:04.759539 | Group 3 week | Not at collection time
+2026-02-19 00:00:04.242624 | Group 3 week | Not at collection time
+2026-02-19 08:00:07.915124 | Group 3 week | Not at collection time
+2026-02-19 13:00:01.579067 | Group 3 week | Not at collection time
+2026-02-19 13:51:42.057283 | Group 3 week | Not at collection time
+2026-02-19 17:00:24.316259 | Group: 3 | Time: 17:00 | Venues: 22/22 | Measurements: 22 | API calls: 22
+2026-02-19 19:00:24.851820 | Group: 3 | Time: 19:00 | Venues: 22/22 | Measurements: 22 | API calls: 22
+2026-02-19 21:00:24.480810 | Group: 3 | Time: 21:00 | Venues: 22/22 | Measurements: 22 | API calls: 22
+2026-02-19 23:00:23.413644 | Group: 3 | Time: 23:00 | Venues: 22/22 | Measurements: 22 | API calls: 22
+2026-02-20 07:00:23.933174 | Group: 3 | Time: 07:00 | Venues: 22/22 | Measurements: 22 | API calls: 22

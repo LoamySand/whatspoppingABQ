@@ -39,6 +39,8 @@ This project demonstrates end-to-end data engineering skills by building an auto
 
 **Use Case:** Analyze how major events (sports, festivals, concerts) impact local businesses, traffic patterns, and community sentiment.
 
+**[Demo](https://whatspoppingabq.streamlit.app/)**
+
 ---
 
 ##  Features
