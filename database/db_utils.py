@@ -416,6 +416,34 @@ def get_event_statistics() -> Dict:
             cur.execute("SELECT COUNT(*) FROM events WHERE is_multi_day = true")
             multi_day_count = cur.fetchone()[0]
             
+            # Events with start times
+            cur.execute("SELECT COUNT(*) FROM events WHERE event_start_time IS NOT NULL")
+            events_with_times = cur.fetchone()[0]
+            
+            # Events with cost information
+            cur.execute("SELECT COUNT(*) FROM events WHERE cost_description IS NOT NULL")
+            events_with_cost = cur.fetchone()[0]
+            
+            # Free events (no cost or cost_min is 0)
+            cur.execute("SELECT COUNT(*) FROM events WHERE cost_min = 0 OR (cost_min IS NULL AND cost_description ILIKE '%free%')")
+            free_events = cur.fetchone()[0]
+            
+            # Events with sponsors
+            cur.execute("SELECT COUNT(*) FROM events WHERE sponsor IS NOT NULL")
+            events_with_sponsors = cur.fetchone()[0]
+            
+            # Average cost (min and max)
+            cur.execute("""
+                SELECT 
+                    COALESCE(AVG(cost_min), 0),
+                    COALESCE(AVG(cost_max), 0)
+                FROM events 
+                WHERE cost_min IS NOT NULL OR cost_max IS NOT NULL
+            """)
+            cost_result = cur.fetchone()
+            avg_cost_min = cost_result[0] if cost_result[0] else 0
+            avg_cost_max = cost_result[1] if cost_result[1] else 0
+            
             # Events by category
             cur.execute("""
                 SELECT category, COUNT(*) as count
@@ -440,6 +468,12 @@ def get_event_statistics() -> Dict:
             return {
                 'total_events': total_events,
                 'multi_day_events': multi_day_count,
+                'events_with_times': events_with_times,
+                'events_with_cost': events_with_cost,
+                'free_events': free_events,
+                'events_with_sponsors': events_with_sponsors,
+                'avg_cost_min': avg_cost_min,
+                'avg_cost_max': avg_cost_max,
                 'by_category': category_counts,
                 'top_venues': top_venues
             }
@@ -449,7 +483,7 @@ def get_event_statistics() -> Dict:
 
 
 def get_multi_day_events() -> List[Dict]:
-    """Get all multi-day events."""
+    """Get all multi-day events with duration calculation."""
     conn = None
     try:
         conn = get_connection()
@@ -465,7 +499,22 @@ def get_multi_day_events() -> List[Dict]:
             columns = [desc[0] for desc in cur.description]
             events = []
             for row in cur.fetchall():
-                events.append(dict(zip(columns, row)))
+                event = dict(zip(columns, row))
+                
+                # Calculate duration_days
+                if event.get('event_start_date') and event.get('event_end_date'):
+                    try:
+                        from datetime import datetime as dt
+                        start = dt.strptime(str(event['event_start_date']), '%Y-%m-%d').date()
+                        end = dt.strptime(str(event['event_end_date']), '%Y-%m-%d').date()
+                        duration = (end - start).days + 1  # +1 to include both start and end date
+                        event['duration_days'] = duration
+                    except (ValueError, TypeError):
+                        event['duration_days'] = 0
+                else:
+                    event['duration_days'] = 0
+                
+                events.append(event)
             
             return events
     finally:
