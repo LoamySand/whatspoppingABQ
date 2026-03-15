@@ -685,6 +685,91 @@ def get_traffic_for_venue(venue_id: int, limit: int = 100) -> List[Dict]:
             conn.close()
 
 
+def geocode_and_link_events() -> int:
+    """
+    Geocode venues for events that don't have latitude/longitude coordinates.
+    Updates events with geocoded coordinates.
+    
+    Returns:
+        Number of venues geocoded and updated
+        
+    Raises:
+        psycopg2.Error: If database operation fails
+    """
+    try:
+        from utils.geocoding import geocode_venue
+    except ImportError:
+        logger.error("Could not import geocode_venue from utils.geocoding")
+        return 0
+    
+    conn = None
+    
+    try:
+        conn = get_connection()
+        
+        with conn.cursor() as cur:
+            # Get unique venues without coordinates
+            query = """
+                SELECT DISTINCT venue_name 
+                FROM events 
+                WHERE (latitude IS NULL OR longitude IS NULL)
+                AND venue_name IS NOT NULL
+                LIMIT 100
+            """
+            cur.execute(query)
+            venues_to_geocode = [row[0] for row in cur.fetchall()]
+            
+            if not venues_to_geocode:
+                logger.info("No venues to geocode")
+                return 0
+            
+            logger.info(f"Geocoding {len(venues_to_geocode)} venues...")
+            
+            geocoded_count = 0
+            
+            for venue_name in venues_to_geocode:
+                # Geocode venue
+                geocode_result = geocode_venue(venue_name)
+                
+                if geocode_result:
+                    latitude = geocode_result['latitude']
+                    longitude = geocode_result['longitude']
+                    
+                    # Update all events with this venue
+                    update_query = """
+                        UPDATE events 
+                        SET latitude = %s, longitude = %s 
+                        WHERE venue_name = %s 
+                        AND (latitude IS NULL OR longitude IS NULL)
+                    """
+                    cur.execute(update_query, (latitude, longitude, venue_name))
+                    
+                    rows_updated = cur.rowcount
+                    logger.info(f"Geocoded '{venue_name}': {rows_updated} events updated")
+                    geocoded_count += 1
+                else:
+                    logger.warning(f"Failed to geocode venue: {venue_name}")
+            
+            conn.commit()
+            logger.info(f"Geocoding complete: {geocoded_count} venues geocoded")
+            
+            return geocoded_count
+            
+    except psycopg2.Error as e:
+        if conn:
+            conn.rollback()
+        logger.error(f"Database error during geocoding: {e}")
+        raise
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        logger.error(f"Unexpected error during geocoding: {e}")
+        raise
+    finally:
+        if conn and not conn.closed:
+            conn.close()
+
+
 # Additional helper functions (truncated for brevity - keep the rest as-is)
 # Just make sure ALL functions close connections in finally blocks
 

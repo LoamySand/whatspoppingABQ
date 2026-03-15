@@ -53,12 +53,17 @@ def scrape_events_with_details(max_pages: int = 3) -> List[Dict]:
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument('--disable-gpu')
     options.add_argument('--window-size=1920,1080')
+    options.add_argument('--net-log-capture-mode=Everything')
     
     logger.info("Starting Chrome browser...")
     driver = webdriver.Chrome(
         service=Service(ChromeDriverManager().install()),
         options=options
     )
+    
+    # Set longer timeouts for slow connections or heavy pages
+    driver.set_page_load_timeout(180)  # 3 minutes
+    driver.set_script_timeout(180)  # 3 minutes
     
     all_events = []
     
@@ -69,20 +74,42 @@ def scrape_events_with_details(max_pages: int = 3) -> List[Dict]:
         for page_num in range(1, max_pages + 1):
             logger.info(f"Scraping page {page_num}...")
             
-            # Wait for events to load
-            try:
-                WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.CLASS_NAME, "listing-item"))
-                )
-            except:
-                logger.warning(f"Timeout on page {page_num}")
+            # Wait for events to load with longer timeout and multiple selectors
+            page_loaded = False
+            for selector in [".listing-item", ".event-item", "[data-event-id]", ".event"]:
+                try:
+                    WebDriverWait(driver, 20).until(
+                        EC.presence_of_all_elements_located((By.CSS_SELECTOR, selector))
+                    )
+                    logger.info(f"Page loaded with selector: {selector}")
+                    page_loaded = True
+                    break
+                except:
+                    logger.debug(f"Selector {selector} not found")
+                    continue
+            
+            if not page_loaded:
+                logger.warning(f"Could not detect page load on page {page_num}")
                 break
             
             time.sleep(2)
             
-            # Get all event links on this page
-            event_links = driver.find_elements(By.CSS_SELECTOR, "a.title")
-            event_urls = [link.get_attribute('href') for link in event_links if link.get_attribute('href')]
+            # Get all event links on this page - try multiple selectors
+            event_urls = []
+            for selector in ["a.title", "a[data-event-url]", ".event-item a", ".listing-item a"]:
+                try:
+                    event_links = driver.find_elements(By.CSS_SELECTOR, selector)
+                    event_urls = [link.get_attribute('href') for link in event_links if link.get_attribute('href')]
+                    if event_urls:
+                        logger.info(f"Found {len(event_urls)} events using selector '{selector}'")
+                        break
+                except Exception as e:
+                    logger.debug(f"Selector {selector} failed: {e}")
+                    continue
+            
+            if not event_urls:
+                logger.warning(f"No events found on page {page_num}")
+                break
             
             logger.info(f"Found {len(event_urls)} events on page {page_num}")
             
@@ -101,17 +128,24 @@ def scrape_events_with_details(max_pages: int = 3) -> List[Dict]:
             if page_num < max_pages:
                 try:
                     next_button = None
-                    for selector in ["a.pagination-next", "a.next", "li.next a", ".pagination a.next"]:
+                    for selector in ["a.pagination-next", "a.next", "li.next a", ".pagination a.next", "[rel='next']"]:
                         elems = driver.find_elements(By.CSS_SELECTOR, selector)
                         if elems and 'disabled' not in (elems[0].get_attribute('class') or '').lower():
                             next_button = elems[0]
+                            logger.debug(f"Found next button with selector: {selector}")
                             break
                     
                     if not next_button:
-                        logger.info("No next button found")
+                        logger.info("No next button found, ending pagination")
                         break
                     
-                    driver.execute_script("arguments[0].click();", next_button)
+                    # Try to click with retry logic
+                    try:
+                        driver.execute_script("arguments[0].click();", next_button)
+                    except:
+                        # Fallback: regular click
+                        next_button.click()
+                    
                     time.sleep(3)
                     
                 except Exception as e:
@@ -140,10 +174,23 @@ def scrape_event_detail(driver, url: str) -> Optional[Dict]:
     try:
         driver.get(url)
         
-        # Wait for detail page to load
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CLASS_NAME, "detail-info"))
-        )
+        # Wait for detail page to load with longer timeout and fallback selectors
+        page_loaded = False
+        for selector in [".detail-info", ".event-detail", "[data-detail]", ".info"]:
+            try:
+                WebDriverWait(driver, 20).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, selector))
+                )
+                logger.debug(f"Detail page loaded with selector: {selector}")
+                page_loaded = True
+                break
+            except:
+                logger.debug(f"Detail selector {selector} not found")
+                continue
+        
+        if not page_loaded:
+            logger.warning(f"Detail page did not load for {url}")
+            return None
         
         time.sleep(1)
         
@@ -154,11 +201,17 @@ def scrape_event_detail(driver, url: str) -> Optional[Dict]:
         title_elem = soup.find('h1')
         event_name = title_elem.get_text(strip=True) if title_elem else None
         
-        # Find detail info list
+        # Find detail info list - try multiple selectors
         detail_list = soup.find('ul', class_='detail-info')
+        if not detail_list:
+            detail_list = soup.find('ul', class_='info-list')
+        if not detail_list:
+            detail_list = soup.find('div', class_='detail-info')
+        if not detail_list:
+            detail_list = soup.find('div', class_='event-details')
         
         if not detail_list:
-            logger.warning(f"No detail-info found for {url}")
+            logger.warning(f"No detail info found for {url}")
             return None
         
         # Extract category from data-gtm-vars
@@ -426,12 +479,34 @@ def clean_email(email_str: str) -> Optional[str]:
 
 
 def validate_event(event: Dict) -> tuple:
-    """Validate event has required fields."""
+    """
+    Validate event has required fields and is in the future.
+    
+    Args:
+        event: Event dictionary
+        
+    Returns:
+        Tuple of (is_valid: bool, message: str)
+    """
     if not event.get('event_name'):
         return False, "Missing event_name"
     
     if not event.get('event_start_date'):
         return False, "Missing event_start_date"
+    
+    # Check if event is in the future
+    try:
+        event_date_str = event.get('event_start_date')
+        # Parse date in format YYYY-MM-DD
+        event_date = datetime.strptime(event_date_str, '%Y-%m-%d').date()
+        today = datetime.now().date()
+        
+        if event_date < today:
+            return False, f"Event date {event_date_str} is in the past"
+        
+    except ValueError as e:
+        logger.warning(f"Could not parse event date {event.get('event_start_date')}: {e}")
+        return False, "Invalid event_start_date format"
     
     return True, "Valid"
 
