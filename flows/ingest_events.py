@@ -217,7 +217,7 @@ def generate_summary_task(load_stats: dict):
 
 
 @flow(name="Event Ingestion Pipeline", log_prints=True)
-def event_ingestion_flow_enhanced(max_pages: int = 3):
+def event_ingestion_flow_enhanced(max_pages: int = 10):
     """
     Main Prefect flow for enhanced event ingestion.
     
@@ -229,7 +229,7 @@ def event_ingestion_flow_enhanced(max_pages: int = 3):
         5. Generate summary statistics
     
     Args:
-        max_pages: Number of pages to scrape (default 3)
+        max_pages: Number of pages to scrape (default 10)
         
     Returns:
         Summary dictionary

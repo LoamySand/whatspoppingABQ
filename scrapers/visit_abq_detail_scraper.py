@@ -69,10 +69,20 @@ def scrape_events_with_details(max_pages: int = 3) -> List[Dict]:
     
     try:
         base_url = "https://www.visitalbuquerque.org/abq365/events/search-calendar/"
-        driver.get(base_url)
+        # Start with today's date to show future events
+        today = datetime.now().strftime('%m/%d/%Y')
+        
+        # Instead of pagination button clicking, use URL parameters
+        # Default shows events from today onwards
+        skip = 0
+        limit = 32  # Events per page
         
         for page_num in range(1, max_pages + 1):
-            logger.info(f"Scraping page {page_num}...")
+            logger.info(f"Scraping page {page_num} (skip={skip})...")
+            
+            # Build URL with parameters for pagination
+            page_url = f"{base_url}?skip={skip}"
+            driver.get(page_url)
             
             # Wait for events to load with longer timeout and multiple selectors
             page_loaded = False
@@ -124,33 +134,8 @@ def scrape_events_with_details(max_pages: int = 3) -> List[Dict]:
                 
                 time.sleep(0.5)
             
-            # Go to next page
-            if page_num < max_pages:
-                try:
-                    next_button = None
-                    for selector in ["a.pagination-next", "a.next", "li.next a", ".pagination a.next", "[rel='next']"]:
-                        elems = driver.find_elements(By.CSS_SELECTOR, selector)
-                        if elems and 'disabled' not in (elems[0].get_attribute('class') or '').lower():
-                            next_button = elems[0]
-                            logger.debug(f"Found next button with selector: {selector}")
-                            break
-                    
-                    if not next_button:
-                        logger.info("No next button found, ending pagination")
-                        break
-                    
-                    # Try to click with retry logic
-                    try:
-                        driver.execute_script("arguments[0].click();", next_button)
-                    except:
-                        # Fallback: regular click
-                        next_button.click()
-                    
-                    time.sleep(3)
-                    
-                except Exception as e:
-                    logger.warning(f"Error clicking next: {e}")
-                    break
+            # Move to next page by incrementing skip
+            skip += limit
         
         # Deduplicate and return
         seen = set()
