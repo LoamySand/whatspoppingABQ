@@ -8,7 +8,7 @@ import sys
 import os
 
 # Set Prefect API URL BEFORE importing anything
-os.environ['PREFECT_API_URL'] = 'http://127.0.0.1:4200/api'
+os.environ['PREFECT_API_URL'] = 'http://10.0.0.22:4200/api'
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -30,7 +30,7 @@ def wait_for_server(max_attempts=30):
     print("Checking server connection...")
     for attempt in range(1, max_attempts + 1):
         try:
-            response = requests.get("http://127.0.0.1:4200/api/health", timeout=2)
+            response = requests.get("http://10.0.0.22:4200/api/health", timeout=2)
             if response.status_code == 200:
                 print(f"[OK] Connected to Prefect server (attempt {attempt})")
                 return True
@@ -61,7 +61,7 @@ if __name__ == "__main__":
     print("Event Scraping:")
     print("  - Weekly: Mondays at 9am")
     print()
-    print("Monitor at: http://localhost:4200")
+    print("Monitor at: http://10.0.0.22:4200")
     print("Press Ctrl+C to stop")
     print("=" * 70)
     print()
