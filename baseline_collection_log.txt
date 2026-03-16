@@ -172,3 +172,4 @@
 2026-03-15 07:00:22.605316 | Group: 3 | Time: 07:00 | Venues: 22/22 | Measurements: 22 | API calls: 22
 2026-03-15 11:28:42.247861 | Group 3 week | Not at collection time
 2026-03-15 12:00:22.692547 | Group: 3 | Time: 12:00 | Venues: 22/22 | Measurements: 22 | API calls: 22
+2026-03-15 17:00:32.190767 | Group: 3 | Time: 17:00 | Venues: 27/27 | Measurements: 27 | API calls: 27

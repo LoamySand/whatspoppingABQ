@@ -17,6 +17,15 @@ import time
 from datetime import datetime
 import re
 from typing import List, Dict, Optional
+import platform
+
+
+def get_chrome_service():
+    if platform.system() == 'Linux':
+        return Service('/usr/bin/chromedriver')
+    else:
+        from webdriver_manager.chrome import ChromeDriverManager
+        return Service(ChromeDriverManager().install())
 
 logging.basicConfig(
     level=logging.INFO,
@@ -57,7 +66,7 @@ def scrape_events_with_details(max_pages: int = 3) -> List[Dict]:
     
     logger.info("Starting Chrome browser...")
     driver = webdriver.Chrome(
-        service=Service(ChromeDriverManager().install()),
+        service=get_chrome_service(),
         options=options
     )
     

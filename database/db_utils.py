@@ -93,6 +93,9 @@ def get_connection():
     
     try:
         conn = psycopg2.connect(**conn_params)
+        with conn.cursor() as cur:
+            cur.execute("SET search_path TO public")
+        conn.commit()
         logger.debug("Database connection established")
         return conn
     except psycopg2.Error as e:

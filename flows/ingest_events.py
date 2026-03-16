@@ -7,7 +7,8 @@ from prefect import flow, task
 from prefect.tasks import task_input_hash
 from datetime import timedelta
 import sys
-sys.path.append('C:\\Users\\lanee\\Desktop\\whatspoppingABQ')
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scrapers.visit_abq_detail_scraper import scrape_events_with_details, validate_event
 from database.db_utils import (

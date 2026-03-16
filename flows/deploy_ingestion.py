@@ -4,7 +4,8 @@ Deploy the event ingestion flow with scheduling.
 """
 
 import sys
-sys.path.append('C:\\Users\\lanee\\Desktop\\whatspoppingABQ')
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from flows.ingest_events import event_ingestion_flow
 
