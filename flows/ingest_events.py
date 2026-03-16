@@ -7,7 +7,6 @@ from prefect.tasks import task_input_hash
 from datetime import timedelta
 import sys
 import os
-from utils.notify import send_failure_alert, send_success_digest, send_crash_alert
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scrapers.visit_abq_detail_scraper import scrape_events_with_details, validate_event
@@ -217,14 +216,9 @@ def generate_summary_task(load_stats: dict):
     return summary
 
 
-@flow(
-    name="Event Ingestion Pipeline",
-    log_prints=True,
-    on_failure=[handle_flow_failure],
-    on_crashed=[handle_flow_crash]
-)
 def handle_flow_failure(flow, flow_run, state):
     """Called automatically by Prefect when the flow fails."""
+    from utils.notify import send_failure_alert
     error = str(state.result(raise_on_failure=False))
     send_failure_alert(
         flow_name=flow.name,
@@ -234,10 +228,18 @@ def handle_flow_failure(flow, flow_run, state):
 
 def handle_flow_crash(flow, flow_run, state):
     """Called automatically by Prefect when the flow crashes."""
+    from utils.notify import send_crash_alert
     send_crash_alert(
         flow_name=flow.name,
         details=f"Flow run '{flow_run.name}' crashed unexpectedly."
     )
+
+@flow(
+    name="Event Ingestion Pipeline",
+    log_prints=True,
+    on_failure=[handle_flow_failure],
+    on_crashed=[handle_flow_crash]
+)
 
 def event_ingestion_flow_enhanced(max_pages: int = 10):
     """
