@@ -1,4 +1,3 @@
-# flows/ingest_events_enhanced.py
 """
 Enhanced Prefect flow for event ingestion with detailed scraping.
 """
@@ -8,6 +7,7 @@ from prefect.tasks import task_input_hash
 from datetime import timedelta
 import sys
 import os
+from utils.notify import send_failure_alert, send_success_digest, send_crash_alert
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scrapers.visit_abq_detail_scraper import scrape_events_with_details, validate_event
@@ -217,7 +217,28 @@ def generate_summary_task(load_stats: dict):
     return summary
 
 
-@flow(name="Event Ingestion Pipeline", log_prints=True)
+@flow(
+    name="Event Ingestion Pipeline",
+    log_prints=True,
+    on_failure=[handle_flow_failure],
+    on_crashed=[handle_flow_crash]
+)
+def handle_flow_failure(flow, flow_run, state):
+    """Called automatically by Prefect when the flow fails."""
+    error = str(state.result(raise_on_failure=False))
+    send_failure_alert(
+        flow_name=flow.name,
+        error=error,
+        run_name=flow_run.name
+    )
+
+def handle_flow_crash(flow, flow_run, state):
+    """Called automatically by Prefect when the flow crashes."""
+    send_crash_alert(
+        flow_name=flow.name,
+        details=f"Flow run '{flow_run.name}' crashed unexpectedly."
+    )
+
 def event_ingestion_flow_enhanced(max_pages: int = 10):
     """
     Main Prefect flow for enhanced event ingestion.
@@ -235,6 +256,7 @@ def event_ingestion_flow_enhanced(max_pages: int = 10):
     Returns:
         Summary dictionary
     """
+    
     logger.info(f"Starting enhanced event ingestion flow (max_pages={max_pages})")
     
     # Task 1: Scrape
@@ -253,8 +275,18 @@ def event_ingestion_flow_enhanced(max_pages: int = 10):
     summary = generate_summary_task(load_stats)
     summary['geocoded_venues'] = geocoded_count
     
+# Send daily success digest
+    send_success_digest(
+        flow_name="Event Ingestion Pipeline",
+        stats={
+            'events_scraped': summary['load_stats']['events_loaded'],
+            'new_events': summary['load_stats']['new_events'],
+            'updated_events': summary['load_stats']['updated_events'],
+            'total_in_database': summary['load_stats']['total_in_db'],
+            'geocoded_venues': summary.get('geocoded_venues', 0),
+        }
+    )
     logger.info("Enhanced event ingestion flow complete")
-    
     return summary
 
 
