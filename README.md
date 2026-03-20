@@ -26,7 +26,6 @@
 - [Project Structure](#project-structure)
 - [API Usage & Cost Optimization](#api-usage--cost-optimization)
 - [Results & Analytics](#results--analytics)
-- [Lessons Learned](#lessons-learned)
 - [Future Enhancements](#future-enhancements)
 - [Contributing](#contributing)
 - [Author](#author)
@@ -322,9 +321,6 @@ prefect server start
 # Terminal 2: Start all flows
 python run_prefect_flows.py
 ```
-
-**Monitor at:** http://localhost:4200
-
 **Deployed flows:**
 - `event-traffic` - Every 30 minutes
 - `baseline-7am` through `baseline-11pm` - 6x daily
@@ -459,7 +455,7 @@ whatspoppingABQ/
 ##  Future Enhancements
 
 ### Phase 1: Self-Hosted Infrastructure
-- [ ] Set up Raspberry Pi/NUC server
+- [x] Set up Raspberry Pi/NUC server
 - [ ] Docker Compose stack (PostgreSQL + Prefect + Dashboard)
 - [ ] Migrate from Supabase to self-hosted PostgreSQL
 
@@ -506,7 +502,7 @@ MIT License - See [LICENSE](LICENSE) file
 
 Focus: Data Engineering
 
-- **Portfolio:** [whatspoppingabq.streamlit.app](https://whatspoppingabq.streamlit.app)
+- **Portfolio:** [getURLrequest.com](https://geturlrequest.com)
 - **GitHub:** [@LoamySand](https://github.com/LoamySand)
 - **LinkedIn:** [lane-boyd](https://www.linkedin.com/in/lane-boyd-48862715a/)
 - **Email:**  LaneEBoyd@gmail.com
@@ -532,6 +528,6 @@ Focus: Data Engineering
 
 ---
 
-*Built with ❤️ (or 💚?) in Albuquerque, New Mexico (IYKYK)*
+*Built with ❤️ (or 💚?) in Albuquerque, New Mexico*
 
-*Last Updated: February 2026*
+*Last Updated: March 2026*
