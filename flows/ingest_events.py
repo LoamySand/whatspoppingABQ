@@ -278,6 +278,7 @@ def event_ingestion_flow_enhanced(max_pages: int = 10):
     summary['geocoded_venues'] = geocoded_count
     
 # Send daily success digest
+    from utils.notify import send_success_digest
     send_success_digest(
         flow_name="Event Ingestion Pipeline",
         stats={
