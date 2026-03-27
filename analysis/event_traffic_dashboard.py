@@ -17,11 +17,11 @@ import psycopg2
 # Page config
 st.set_page_config(
     page_title="ABQ Event Traffic Dashboard",
-    page_icon="🚦",
+    page_icon="",
     layout="wide"
 )
 
-st.title("🚦 Albuquerque Event Traffic Impact Dashboard")
+st.title(" Albuquerque Event Traffic Impact Dashboard")
 st.markdown("*Analyzing how events affect local traffic patterns*")
 st.markdown("---")
 
@@ -328,7 +328,7 @@ try:
     col1, col2 = st.columns(2)
 
     with col1:
-        st.subheader("📊 Speed Reduction by Category")
+        st.subheader(" Speed Reduction by Category")
         # Rebuild from filtered_df so sidebar filters apply
         cat_with_data = filtered_df[
             filtered_df['speed_reduction_pct'].notna() &
@@ -373,7 +373,7 @@ try:
             st.info("No category data available")
 
     with col2:
-        st.subheader("🔍 Data Quality Distribution")
+        st.subheader(" Data Quality Distribution")
         quality_counts = filtered_df[
             filtered_df['data_quality'] != 'no_event_data'
         ]['data_quality'].value_counts()
@@ -392,7 +392,7 @@ try:
             st.info("No quality data available")
 
     # ── Baseline confidence breakdown ─────────
-    st.subheader("📐 Baseline Confidence Breakdown")
+    st.subheader(" Baseline Confidence Breakdown")
     conf_col1, conf_col2 = st.columns(2)
 
     with conf_col1:
@@ -432,7 +432,7 @@ try:
         st.plotly_chart(fig_conf_reduction, use_container_width=True)
 
     # ── Event vs Baseline speed scatter ──────
-    st.subheader("🔴 Event Speed vs Baseline Speed")
+    st.subheader(" Event Speed vs Baseline Speed")
     comparison_df = filtered_df[
         (filtered_df['event_avg_speed'].notna()) &
         (filtered_df['baseline_avg_speed'].notna())
@@ -485,7 +485,7 @@ try:
         st.info("No events with both event and baseline data for the selected filters")
 
     # ── Timeline ─────────────────────────────
-    st.subheader("📅 Speed Reduction Over Time")
+    st.subheader(" Speed Reduction Over Time")
     timeline_df = filtered_df[
         filtered_df['speed_reduction_pct'].notna()
     ].sort_values('event_start_date').copy()
@@ -538,7 +538,7 @@ try:
         st.info("No timeline data available for the selected filters")
 
     # ── Map ───────────────────────────────────
-    st.subheader("🗺️ Event Locations & Speed Reduction")
+    st.subheader(" Event Locations & Speed Reduction")
     map_df = filtered_df[
         filtered_df['latitude'].notna() &
         filtered_df['longitude'].notna() &
@@ -579,7 +579,7 @@ try:
         st.info("No map data for the selected filters — speed reduction % required for map display")
 
     # ── Top events table ──────────────────────
-    st.subheader("🏆 Top Impact Events")
+    st.subheader(" Top Impact Events")
 
     if len(filtered_df) > 0:
         rankable = filtered_df[filtered_df['speed_reduction_pct'].notna()]
@@ -642,7 +642,7 @@ try:
         st.info("No events match the selected filters")
 
     # ── Raw data expander ─────────────────────
-    with st.expander("🔎 View All Event Data"):
+    with st.expander(" View All Event Data"):
         st.dataframe(filtered_df, use_container_width=True)
 
     # ── Footer ────────────────────────────────

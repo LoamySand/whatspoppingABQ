@@ -55,7 +55,7 @@ def send_email(subject: str, body: str, is_html: bool = False):
 def send_failure_alert(flow_name: str, error: str, run_name: str = None):
     """Send a pipeline failure alert email."""
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    subject = f"🚨 Pipeline Failed: {flow_name}"
+    subject = f" Pipeline Failed: {flow_name}"
 
     body = f"""
     <h2 style="color: #cc0000;">Pipeline Failure Alert</h2>
@@ -74,7 +74,7 @@ def send_failure_alert(flow_name: str, error: str, run_name: str = None):
 def send_success_digest(flow_name: str, stats: dict):
     """Send a daily success digest email."""
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    subject = f"✅ Daily Pipeline Success: {flow_name}"
+    subject = f" Daily Pipeline Success: {flow_name}"
 
     # Build stats rows
     stats_rows = ""
@@ -111,7 +111,7 @@ def send_success_digest(flow_name: str, stats: dict):
 def send_crash_alert(flow_name: str, details: str = None):
     """Send a pipeline crash/timeout alert email."""
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    subject = f"💥 Pipeline Crashed: {flow_name}"
+    subject = f" Pipeline Crashed: {flow_name}"
 
     body = f"""
     <h2 style="color: #cc0000;">Pipeline Crash Alert</h2>
