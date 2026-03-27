@@ -98,7 +98,7 @@ def load_event_data():
             impact_above_baseline,
             impact_level,
             data_quality
-        FROM event_impact_detail
+        FROM app.event_impact_detail
         ORDER BY event_start_date DESC
     """
     
@@ -137,7 +137,7 @@ def load_category_data():
             avg_baseline_speed,
             avg_speed_difference,
             pct_high_impact
-        FROM category_traffic_impact
+        FROM app.category_traffic_impact
         ORDER BY avg_impact_minutes DESC NULLS LAST
     """
     
@@ -167,7 +167,7 @@ def load_baseline_patterns():
             avg_speed,
             typical_traffic_level,
             measurement_count
-        FROM venue_baseline_patterns
+        FROM app.venue_baseline_patterns
         ORDER BY venue_name, day_of_week, hour_of_day
     """
     
