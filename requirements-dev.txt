@@ -4,3 +4,8 @@
 pytest>=8.0.0
 pytest-cov>=5.0.0
 pytest-mock>=3.14.0
+
+# Linting/formatting (SCRUM-17)
+ruff==0.15.20
+black==26.5.1
+pre-commit>=4.0.0

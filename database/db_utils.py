@@ -4,24 +4,24 @@ Database utilities for event analytics pipeline.
 Handles connections and data insertion to PostgreSQL.
 Supports both local .env and Streamlit Cloud secrets with Supabase pooler.
 """
+
 import datetime
-import os
-from dotenv import load_dotenv
-import psycopg2
-from psycopg2.extras import execute_values
 import logging
-from typing import List, Dict, Optional
+import os
+
+import psycopg2
+from dotenv import load_dotenv
+from psycopg2.extras import execute_values
 
 # Load environment variables from .env file
 # Find the project root (.env location) relative to this file
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-env_path = os.path.join(project_root, '.env')
+env_path = os.path.join(project_root, ".env")
 load_dotenv(dotenv_path=env_path, override=True)
 
 
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -31,23 +31,24 @@ def get_connection():
     Get database connection.
     Supports both local .env and Streamlit Cloud secrets.
     Creates a NEW connection each time (important for pooler).
-    
+
     Returns:
         psycopg2 connection object
-        
+
     Raises:
         psycopg2.Error: If connection fails
     """
-    
+
     # Ensure .env is loaded fresh (important for subprocesses)
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    env_path = os.path.join(project_root, '.env')
+    env_path = os.path.join(project_root, ".env")
     load_dotenv(dotenv_path=env_path, override=True)
-    
+
     # Try Streamlit secrets first (for deployed app)
     try:
         import streamlit as st
-        if hasattr(st, 'secrets') and 'DB_HOST' in st.secrets:
+
+        if hasattr(st, "secrets") and "DB_HOST" in st.secrets:
             logger.debug("Using Streamlit secrets for connection")
             return psycopg2.connect(
                 host=st.secrets["DB_HOST"],
@@ -55,42 +56,42 @@ def get_connection():
                 database=st.secrets["DB_NAME"],
                 user=st.secrets["DB_USER"],
                 password=st.secrets["DB_PASSWORD"],
-                sslmode='require',
-                connect_timeout=10
+                sslmode="require",
+                connect_timeout=10,
             )
     except (ImportError, AttributeError, FileNotFoundError, KeyError):
         # Streamlit not available or no secrets, use .env
         pass
-    
+
     # Fallback to .env (for local development)
-    host = os.getenv('DB_HOST', 'localhost')
-    port = int(os.getenv('DB_PORT', '5432'))
-    database = os.getenv('DB_NAME', 'postgres')
-    user = os.getenv('DB_USER', 'postgres')
-    password = os.getenv('DB_PASSWORD')
-    
+    host = os.getenv("DB_HOST", "localhost")
+    port = int(os.getenv("DB_PORT", "5432"))
+    database = os.getenv("DB_NAME", "postgres")
+    user = os.getenv("DB_USER", "postgres")
+    password = os.getenv("DB_PASSWORD")
+
     # DEBUG: Log connection details
     logger.info(f"[CONNECTION] Host: {host}")
     logger.info(f"[CONNECTION] Port: {port}")
     logger.info(f"[CONNECTION] Database: {database}")
     logger.info(f"[CONNECTION] User: {user}")
-    
+
     # Determine if using Supabase
-    is_supabase = 'supabase' in host
-    
+    is_supabase = "supabase" in host
+
     conn_params = {
-        'host': host,
-        'port': port,
-        'database': database,
-        'user': user,
-        'password': password,
-        'connect_timeout': 10
+        "host": host,
+        "port": port,
+        "database": database,
+        "user": user,
+        "password": password,
+        "connect_timeout": 10,
     }
-    
+
     # Add SSL for Supabase
     if is_supabase:
-        conn_params['sslmode'] = 'require'
-    
+        conn_params["sslmode"] = "require"
+
     try:
         conn = psycopg2.connect(**conn_params)
         with conn.cursor() as cur:
@@ -107,15 +108,15 @@ def query_to_dataframe(query: str):
     """
     Execute query and return DataFrame.
     Creates and closes connection for each query (important for pooler).
-    
+
     Args:
         query: SQL query string
-        
+
     Returns:
         pandas DataFrame
     """
     import pandas as pd
-    
+
     conn = None
     try:
         conn = get_connection()
@@ -124,6 +125,7 @@ def query_to_dataframe(query: str):
     except Exception as e:
         logger.error(f"Database query error: {e}")
         import traceback
+
         traceback.print_exc()
         raise
     finally:
@@ -134,7 +136,7 @@ def query_to_dataframe(query: str):
 def test_connection() -> bool:
     """
     Test database connection.
-    
+
     Returns:
         True if connection successful, False otherwise
     """
@@ -147,74 +149,71 @@ def test_connection() -> bool:
         logger.error(f" Database connection test failed: {e}")
         return False
 
-def insert_events(events: List[Dict]) -> int:
+
+def insert_events(events: list[dict]) -> int:
     """
     Insert events into database with upsert logic.
-    
+
     Uses new schema with start/end dates and times.
-    
+
     Deduplicates events before insertion to avoid conflicts.
     Uses ON CONFLICT to update existing events based on
     unique constraint (event_name, event_start_date, venue_name).
-    
+
     Args:
         events: List of event dictionaries
-    
+
     Returns:
         Number of events inserted/updated
-        
+
     Raises:
         psycopg2.Error: If database operation fails
     """
     if not events:
         logger.warning("No events to insert")
         return 0
-    
+
     # Deduplicate events based on (event_name, event_start_date, venue_name)
     seen = set()
     unique_events = []
     duplicates_removed = 0
-    
+
     for event in events:
-        key = (
-            event.get('event_name'), 
-            event.get('event_start_date'),
-            event.get('venue_name')
-        )
+        key = (event.get("event_name"), event.get("event_start_date"), event.get("venue_name"))
         if key not in seen:
             seen.add(key)
             unique_events.append(event)
         else:
             duplicates_removed += 1
-    
+
     if duplicates_removed > 0:
         logger.info(f"Removed {duplicates_removed} duplicate events from batch")
-    
+
     logger.info(f"Inserting {len(unique_events)} unique events")
-    
+
     conn = None
-    
+
     try:
         conn = get_connection()
-        
+
         with conn.cursor() as cur:
             # SQL query with upsert logic
             query = """
-                INSERT INTO events 
-                (event_name, venue_name, 
-                 event_start_date, event_end_date, 
+                INSERT INTO events
+                (event_name, venue_name,
+                 event_start_date, event_end_date,
                  event_start_time, event_end_time,
                  is_multi_day,
-                 category, 
+                 category,
                  sponsor,
                  cost_min, cost_max, cost_description,
                  phone, email,
                  ticket_url, website_url,
-                 expected_attendance, 
-                 latitude, longitude, 
+                 expected_attendance,
+                 latitude, longitude,
                  source_url)
                 VALUES %s
-                ON CONFLICT (event_name, event_start_date, venue_name) 
+                ON CONFLICT (event_name, event_start_date, venue_name)
                 DO UPDATE SET
                     event_end_date = EXCLUDED.event_end_date,
                     event_start_time = EXCLUDED.event_start_time,
@@ -235,42 +234,44 @@ def insert_events(events: List[Dict]) -> int:
                     source_url = EXCLUDED.source_url,
                     updated_at = CURRENT_TIMESTAMP
             """
-            
+
             # Prepare values
             values = [
                 (
-                    event.get('event_name'),
-                    event.get('venue_name'),
-                    event.get('event_start_date'),
-                    event.get('event_end_date'),
-                    event.get('event_start_time'),
-                    event.get('event_end_time'),
-                    event.get('is_multi_day', False),
-                    event.get('category'),
-                    event.get('sponsor'),
-                    event.get('cost_min'),
-                    event.get('cost_max'),
-                    event.get('cost_description'),
-                    event.get('phone'),
-                    event.get('email'),
-                    event.get('ticket_url'),
-                    event.get('website_url'),
-                    event.get('expected_attendance'),
-                    event.get('latitude'),
-                    event.get('longitude'),
-                    event.get('source_url')
+                    event.get("event_name"),
+                    event.get("venue_name"),
+                    event.get("event_start_date"),
+                    event.get("event_end_date"),
+                    event.get("event_start_time"),
+                    event.get("event_end_time"),
+                    event.get("is_multi_day", False),
+                    event.get("category"),
+                    event.get("sponsor"),
+                    event.get("cost_min"),
+                    event.get("cost_max"),
+                    event.get("cost_description"),
+                    event.get("phone"),
+                    event.get("email"),
+                    event.get("ticket_url"),
+                    event.get("website_url"),
+                    event.get("expected_attendance"),
+                    event.get("latitude"),
+                    event.get("longitude"),
+                    event.get("source_url"),
                 )
                 for event in unique_events
             ]
-            
+
             # Execute batch insert
             execute_values(cur, query, values)
             conn.commit()
-            
+
             rows_affected = cur.rowcount
-            logger.info(f"Successfully inserted/updated {len(unique_events)} events ({rows_affected} rows affected)")
+            logger.info(
+                f"Successfully inserted/updated {len(unique_events)} events ({rows_affected} rows affected)"
+            )
             return len(unique_events)
-            
+
     except psycopg2.Error as e:
         if conn:
             conn.rollback()
@@ -284,6 +285,7 @@ def insert_events(events: List[Dict]) -> int:
     finally:
         if conn and not conn.closed:
             conn.close()
+
 
 def get_event_count() -> int:
     """Get total count of events in database."""
@@ -299,90 +301,99 @@ def get_event_count() -> int:
             conn.close()
 
 
-def get_recent_events(limit: int = 10) -> List[Dict]:
+def get_recent_events(limit: int = 10) -> list[dict]:
     """Get most recently added/updated events."""
     conn = None
     try:
         conn = get_connection()
         with conn.cursor() as cur:
-            cur.execute("""
-                SELECT event_id, event_name, venue_name, event_start_date, 
+            cur.execute(
+                """
+                SELECT event_id, event_name, venue_name, event_start_date,
                        event_start_time, category, created_at, updated_at
                 FROM events
                 ORDER BY updated_at DESC
                 LIMIT %s
-            """, (limit,))
-            
+            """,
+                (limit,),
+            )
+
             columns = [desc[0] for desc in cur.description]
             rows = cur.fetchall()
-            
+
             events = []
             for row in rows:
-                event = dict(zip(columns, row))
+                event = dict(zip(columns, row, strict=False))
                 events.append(event)
-            
+
             return events
     finally:
         if conn and not conn.closed:
             conn.close()
 
 
-def get_events_by_date_range(start_date: str, end_date: str) -> List[Dict]:
+def get_events_by_date_range(start_date: str, end_date: str) -> list[dict]:
     """Get events within a date range."""
     conn = None
     try:
         conn = get_connection()
         with conn.cursor() as cur:
-            cur.execute("""
-                SELECT event_id, event_name, venue_name, event_start_date, 
+            cur.execute(
+                """
+                SELECT event_id, event_name, venue_name, event_start_date,
                        event_start_time, category
                 FROM events
                 WHERE event_start_date BETWEEN %s AND %s
                 ORDER BY event_start_date
-            """, (start_date, end_date))
-            
+            """,
+                (start_date, end_date),
+            )
+
             columns = [desc[0] for desc in cur.description]
             rows = cur.fetchall()
-            
+
             events = []
             for row in rows:
-                event = dict(zip(columns, row))
+                event = dict(zip(columns, row, strict=False))
                 events.append(event)
-            
+
             return events
     finally:
         if conn and not conn.closed:
             conn.close()
 
 
-def get_events_by_category(category: str) -> List[Dict]:
+def get_events_by_category(category: str) -> list[dict]:
     """Get all events in a specific category."""
     conn = None
     try:
         conn = get_connection()
         with conn.cursor() as cur:
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT event_id, event_name, venue_name, event_start_date, category
                 FROM events
                 WHERE category = %s
                 ORDER BY event_start_date
-            """, (category,))
-            
+            """,
+                (category,),
+            )
+
             columns = [desc[0] for desc in cur.description]
             rows = cur.fetchall()
-            
+
             events = []
             for row in rows:
-                event = dict(zip(columns, row))
+                event = dict(zip(columns, row, strict=False))
                 events.append(event)
-            
+
             return events
     finally:
         if conn and not conn.closed:
             conn.close()
 
 
-def get_category_counts() -> Dict[str, int]:
+def get_category_counts() -> dict[str, int]:
     """Get count of events by category."""
     conn = None
     try:
@@ -394,18 +405,18 @@ def get_category_counts() -> Dict[str, int]:
                 GROUP BY category
                 ORDER BY count DESC
             """)
-            
+
             results = {}
             for row in cur.fetchall():
                 results[row[0]] = row[1]
-            
+
             return results
     finally:
         if conn and not conn.closed:
             conn.close()
 
 
-def get_event_statistics() -> Dict:
+def get_event_statistics() -> dict:
     """Get comprehensive statistics about events in database."""
     conn = None
     try:
@@ -414,39 +425,41 @@ def get_event_statistics() -> Dict:
             # Total events
             cur.execute("SELECT COUNT(*) FROM events")
             total_events = cur.fetchone()[0]
-            
+
             # Multi-day events
             cur.execute("SELECT COUNT(*) FROM events WHERE is_multi_day = true")
             multi_day_count = cur.fetchone()[0]
-            
+
             # Events with start times
             cur.execute("SELECT COUNT(*) FROM events WHERE event_start_time IS NOT NULL")
             events_with_times = cur.fetchone()[0]
-            
+
             # Events with cost information
             cur.execute("SELECT COUNT(*) FROM events WHERE cost_description IS NOT NULL")
             events_with_cost = cur.fetchone()[0]
-            
+
             # Free events (no cost or cost_min is 0)
-            cur.execute("SELECT COUNT(*) FROM events WHERE cost_min = 0 OR (cost_min IS NULL AND cost_description ILIKE '%free%')")
+            cur.execute(
+                "SELECT COUNT(*) FROM events WHERE cost_min = 0 OR (cost_min IS NULL AND cost_description ILIKE '%free%')"
+            )
             free_events = cur.fetchone()[0]
-            
+
             # Events with sponsors
             cur.execute("SELECT COUNT(*) FROM events WHERE sponsor IS NOT NULL")
             events_with_sponsors = cur.fetchone()[0]
-            
+
             # Average cost (min and max)
             cur.execute("""
-                SELECT 
+                SELECT
                     COALESCE(AVG(cost_min), 0),
                     COALESCE(AVG(cost_max), 0)
-                FROM events 
+                FROM events
                 WHERE cost_min IS NOT NULL OR cost_max IS NOT NULL
             """)
             cost_result = cur.fetchone()
             avg_cost_min = cost_result[0] if cost_result[0] else 0
             avg_cost_max = cost_result[1] if cost_result[1] else 0
-            
+
             # Events by category
             cur.execute("""
                 SELECT category, COUNT(*) as count
@@ -456,7 +469,7 @@ def get_event_statistics() -> Dict:
                 ORDER BY count DESC
             """)
             category_counts = {row[0]: row[1] for row in cur.fetchall()}
-            
+
             # Events by venue
             cur.execute("""
                 SELECT venue_name, COUNT(*) as count
@@ -467,58 +480,59 @@ def get_event_statistics() -> Dict:
                 LIMIT 10
             """)
             top_venues = {row[0]: row[1] for row in cur.fetchall()}
-            
+
             return {
-                'total_events': total_events,
-                'multi_day_events': multi_day_count,
-                'events_with_times': events_with_times,
-                'events_with_cost': events_with_cost,
-                'free_events': free_events,
-                'events_with_sponsors': events_with_sponsors,
-                'avg_cost_min': avg_cost_min,
-                'avg_cost_max': avg_cost_max,
-                'by_category': category_counts,
-                'top_venues': top_venues
+                "total_events": total_events,
+                "multi_day_events": multi_day_count,
+                "events_with_times": events_with_times,
+                "events_with_cost": events_with_cost,
+                "free_events": free_events,
+                "events_with_sponsors": events_with_sponsors,
+                "avg_cost_min": avg_cost_min,
+                "avg_cost_max": avg_cost_max,
+                "by_category": category_counts,
+                "top_venues": top_venues,
             }
     finally:
         if conn and not conn.closed:
             conn.close()
 
 
-def get_multi_day_events() -> List[Dict]:
+def get_multi_day_events() -> list[dict]:
     """Get all multi-day events with duration calculation."""
     conn = None
     try:
         conn = get_connection()
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT event_id, event_name, venue_name, event_start_date, 
+                SELECT event_id, event_name, venue_name, event_start_date,
                        event_end_date, category
                 FROM events
                 WHERE is_multi_day = true
                 ORDER BY event_start_date DESC
             """)
-            
+
             columns = [desc[0] for desc in cur.description]
             events = []
             for row in cur.fetchall():
-                event = dict(zip(columns, row))
-                
+                event = dict(zip(columns, row, strict=False))
+
                 # Calculate duration_days
-                if event.get('event_start_date') and event.get('event_end_date'):
+                if event.get("event_start_date") and event.get("event_end_date"):
                     try:
                         from datetime import datetime as dt
-                        start = dt.strptime(str(event['event_start_date']), '%Y-%m-%d').date()
-                        end = dt.strptime(str(event['event_end_date']), '%Y-%m-%d').date()
+
+                        start = dt.strptime(str(event["event_start_date"]), "%Y-%m-%d").date()
+                        end = dt.strptime(str(event["event_end_date"]), "%Y-%m-%d").date()
                         duration = (end - start).days + 1  # +1 to include both start and end date
-                        event['duration_days'] = duration
+                        event["duration_days"] = duration
                     except (ValueError, TypeError):
-                        event['duration_days'] = 0
+                        event["duration_days"] = 0
                 else:
-                    event['duration_days'] = 0
-                
+                    event["duration_days"] = 0
+
                 events.append(event)
-            
+
             return events
     finally:
         if conn and not conn.closed:
@@ -540,22 +554,26 @@ def clear_all_events() -> int:
         if conn and not conn.closed:
             conn.close()
 
+
 # ============================================================
 # VENUE LOCATION FUNCTIONS
 # ============================================================
 
-def insert_venue(venue_name: str, latitude: float, longitude: float, 
-                 address: str = None, place_id: str = None) -> Optional[int]:
+
+def insert_venue(
+    venue_name: str, latitude: float, longitude: float, address: str = None, place_id: str = None
+) -> int | None:
     """Insert or update a venue location."""
     conn = None
     try:
         conn = get_connection()
         with conn.cursor() as cur:
-            cur.execute("""
-                INSERT INTO venue_locations 
+            cur.execute(
+                """
+                INSERT INTO venue_locations
                 (venue_name, address, latitude, longitude, place_id)
                 VALUES (%s, %s, %s, %s, %s)
-                ON CONFLICT (venue_name) 
+                ON CONFLICT (venue_name)
                 DO UPDATE SET
                     address = EXCLUDED.address,
                     latitude = EXCLUDED.latitude,
@@ -563,14 +581,16 @@ def insert_venue(venue_name: str, latitude: float, longitude: float,
                     place_id = EXCLUDED.place_id,
                     updated_at = CURRENT_TIMESTAMP
                 RETURNING venue_id
-            """, (venue_name, address, latitude, longitude, place_id))
-            
+            """,
+                (venue_name, address, latitude, longitude, place_id),
+            )
+
             venue_id = cur.fetchone()[0]
             conn.commit()
-            
+
             logger.info(f"Inserted/updated venue: {venue_name} (ID: {venue_id})")
             return venue_id
-            
+
     except Exception as e:
         if conn:
             conn.rollback()
@@ -581,27 +601,30 @@ def insert_venue(venue_name: str, latitude: float, longitude: float,
             conn.close()
 
 
-def get_venue_by_name(venue_name: str) -> Optional[Dict]:
+def get_venue_by_name(venue_name: str) -> dict | None:
     """Get venue information by name."""
     conn = None
     try:
         conn = get_connection()
         with conn.cursor() as cur:
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT venue_id, venue_name, address, latitude, longitude, place_id
                 FROM venue_locations
                 WHERE venue_name = %s
-            """, (venue_name,))
-            
+            """,
+                (venue_name,),
+            )
+
             row = cur.fetchone()
             if row:
                 return {
-                    'venue_id': row[0],
-                    'venue_name': row[1],
-                    'address': row[2],
-                    'latitude': row[3],
-                    'longitude': row[4],
-                    'place_id': row[5]
+                    "venue_id": row[0],
+                    "venue_name": row[1],
+                    "address": row[2],
+                    "latitude": row[3],
+                    "longitude": row[4],
+                    "place_id": row[5],
                 }
             return None
     finally:
@@ -609,7 +632,7 @@ def get_venue_by_name(venue_name: str) -> Optional[Dict]:
             conn.close()
 
 
-def get_all_venues() -> List[Dict]:
+def get_all_venues() -> list[dict]:
     """Get all venues from database."""
     conn = None
     try:
@@ -620,16 +643,18 @@ def get_all_venues() -> List[Dict]:
                 FROM venue_locations
                 ORDER BY venue_name
             """)
-            
+
             venues = []
             for row in cur.fetchall():
-                venues.append({
-                    'venue_id': row[0],
-                    'venue_name': row[1],
-                    'address': row[2],
-                    'latitude': row[3],
-                    'longitude': row[4]
-                })
+                venues.append(
+                    {
+                        "venue_id": row[0],
+                        "venue_name": row[1],
+                        "address": row[2],
+                        "latitude": row[3],
+                        "longitude": row[4],
+                    }
+                )
             return venues
     finally:
         if conn and not conn.closed:
@@ -639,23 +664,24 @@ def get_all_venues() -> List[Dict]:
 # ============================================================
 # TRAFFIC MEASUREMENT FUNCTIONS
 # ============================================================
-def insert_traffic_measurement(venue_id: int, measurement_time: datetime, 
-                               traffic_data: Dict, event_id: int = None) -> int:
+def insert_traffic_measurement(
+    venue_id: int, measurement_time: datetime, traffic_data: dict, event_id: int = None
+) -> int:
     """Insert a traffic measurement into the database."""
     conn = None
-    
+
     try:
         conn = get_connection()
-        
+
         with conn.cursor() as cur:
             # Calculate metadata
             day_of_week = (measurement_time.weekday() + 1) % 7  # 0=Sun, 6=Sat
             hour_of_day = measurement_time.hour
-            
+
             # Determine if baseline
-            is_baseline = traffic_data.get('is_baseline', False)
-            baseline_type = traffic_data.get('baseline_type') if is_baseline else None
-            
+            is_baseline = traffic_data.get("is_baseline", False)
+            baseline_type = traffic_data.get("baseline_type") if is_baseline else None
+
             query = """
                 INSERT INTO traffic_measurements (
                     venue_id, event_id, measurement_time, traffic_level,
@@ -669,31 +695,38 @@ def insert_traffic_measurement(venue_id: int, measurement_time: datetime,
                 )
                 RETURNING measurement_id
             """
-            
-            cur.execute(query, (
-                venue_id, event_id, measurement_time,
-                traffic_data.get('traffic_level'),
-                traffic_data.get('avg_speed_mph'),
-                traffic_data.get('typical_speed_mph'),
-                traffic_data.get('travel_time_seconds'),
-                traffic_data.get('typical_time_seconds'),
-                traffic_data.get('delay_minutes'),
-                traffic_data.get('origin_lat'),
-                traffic_data.get('origin_lng'),
-                traffic_data.get('destination_lat'),
-                traffic_data.get('destination_lng'),
-                traffic_data.get('distance_miles'),
-                traffic_data.get('data_source', 'tomtom'),
-                traffic_data.get('raw_response'),
-                is_baseline, baseline_type,
-                day_of_week, hour_of_day
-            ))
-            
+
+            cur.execute(
+                query,
+                (
+                    venue_id,
+                    event_id,
+                    measurement_time,
+                    traffic_data.get("traffic_level"),
+                    traffic_data.get("avg_speed_mph"),
+                    traffic_data.get("typical_speed_mph"),
+                    traffic_data.get("travel_time_seconds"),
+                    traffic_data.get("typical_time_seconds"),
+                    traffic_data.get("delay_minutes"),
+                    traffic_data.get("origin_lat"),
+                    traffic_data.get("origin_lng"),
+                    traffic_data.get("destination_lat"),
+                    traffic_data.get("destination_lng"),
+                    traffic_data.get("distance_miles"),
+                    traffic_data.get("data_source", "tomtom"),
+                    traffic_data.get("raw_response"),
+                    is_baseline,
+                    baseline_type,
+                    day_of_week,
+                    hour_of_day,
+                ),
+            )
+
             measurement_id = cur.fetchone()[0]
             conn.commit()
-            
+
             return measurement_id
-            
+
     except Exception as e:
         if conn:
             conn.rollback()
@@ -704,14 +737,15 @@ def insert_traffic_measurement(venue_id: int, measurement_time: datetime,
             conn.close()
 
 
-def get_traffic_for_venue(venue_id: int, limit: int = 100) -> List[Dict]:
+def get_traffic_for_venue(venue_id: int, limit: int = 100) -> list[dict]:
     """Get recent traffic measurements for a venue."""
     conn = None
     try:
         conn = get_connection()
         with conn.cursor() as cur:
-            cur.execute("""
-                SELECT 
+            cur.execute(
+                """
+                SELECT
                     measurement_id, measurement_time,
                     traffic_level, delay_minutes,
                     avg_speed_mph, distance_miles
@@ -719,18 +753,22 @@ def get_traffic_for_venue(venue_id: int, limit: int = 100) -> List[Dict]:
                 WHERE venue_id = %s
                 ORDER BY measurement_time DESC
                 LIMIT %s
-            """, (venue_id, limit))
-            
+            """,
+                (venue_id, limit),
+            )
+
             measurements = []
             for row in cur.fetchall():
-                measurements.append({
-                    'measurement_id': row[0],
-                    'measurement_time': row[1],
-                    'traffic_level': row[2],
-                    'delay_minutes': row[3],
-                    'avg_speed_mph': row[4],
-                    'distance_miles': row[5]
-                })
+                measurements.append(
+                    {
+                        "measurement_id": row[0],
+                        "measurement_time": row[1],
+                        "traffic_level": row[2],
+                        "delay_minutes": row[3],
+                        "avg_speed_mph": row[4],
+                        "distance_miles": row[5],
+                    }
+                )
             return measurements
     finally:
         if conn and not conn.closed:
@@ -741,10 +779,10 @@ def geocode_and_link_events() -> int:
     """
     Geocode venues for events that don't have latitude/longitude coordinates.
     Updates events with geocoded coordinates.
-    
+
     Returns:
         Number of venues geocoded and updated
-        
+
     Raises:
         psycopg2.Error: If database operation fails
     """
@@ -753,60 +791,60 @@ def geocode_and_link_events() -> int:
     except ImportError:
         logger.error("Could not import geocode_venue from utils.geocoding")
         return 0
-    
+
     conn = None
-    
+
     try:
         conn = get_connection()
-        
+
         with conn.cursor() as cur:
             # Get unique venues without coordinates
             query = """
-                SELECT DISTINCT venue_name 
-                FROM events 
+                SELECT DISTINCT venue_name
+                FROM events
                 WHERE (latitude IS NULL OR longitude IS NULL)
                 AND venue_name IS NOT NULL
                 LIMIT 100
             """
             cur.execute(query)
             venues_to_geocode = [row[0] for row in cur.fetchall()]
-            
+
             if not venues_to_geocode:
                 logger.info("No venues to geocode")
                 return 0
-            
+
             logger.info(f"Geocoding {len(venues_to_geocode)} venues...")
-            
+
             geocoded_count = 0
-            
+
             for venue_name in venues_to_geocode:
                 # Geocode venue
                 geocode_result = geocode_venue(venue_name)
-                
+
                 if geocode_result:
-                    latitude = geocode_result['latitude']
-                    longitude = geocode_result['longitude']
-                    
+                    latitude = geocode_result["latitude"]
+                    longitude = geocode_result["longitude"]
+
                     # Update all events with this venue
                     update_query = """
-                        UPDATE events 
-                        SET latitude = %s, longitude = %s 
-                        WHERE venue_name = %s 
+                        UPDATE events
+                        SET latitude = %s, longitude = %s
+                        WHERE venue_name = %s
                         AND (latitude IS NULL OR longitude IS NULL)
                     """
                     cur.execute(update_query, (latitude, longitude, venue_name))
-                    
+
                     rows_updated = cur.rowcount
                     logger.info(f"Geocoded '{venue_name}': {rows_updated} events updated")
                     geocoded_count += 1
                 else:
                     logger.warning(f"Failed to geocode venue: {venue_name}")
-            
+
             conn.commit()
             logger.info(f"Geocoding complete: {geocoded_count} venues geocoded")
-            
+
             return geocoded_count
-            
+
     except psycopg2.Error as e:
         if conn:
             conn.rollback()
@@ -831,7 +869,7 @@ if __name__ == "__main__":
     print("Database Utilities Test")
     print("=" * 60)
     print()
-    
+
     # Test 1: Connection
     print("Test 1: Database Connection")
     print("-" * 60)
@@ -841,7 +879,7 @@ if __name__ == "__main__":
         print(" Connection failed")
         exit(1)
     print()
-    
+
     # Test 2: Event count
     print("Test 2: Get Event Count")
     print("-" * 60)
@@ -851,6 +889,6 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Error: {e}")
     print()
-    
+
     print("=" * 60)
     print("All tests complete!")

@@ -1,0 +1,37 @@
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+extend-exclude = '''
+/(
+  \.venv
+  | venv
+  | __pycache__
+  | \.git
+)/
+'''
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [".venv", "venv", "__pycache__", "*.bak*"]
+
+[tool.ruff.lint]
+# E/W: pycodestyle, F: pyflakes, I: import sorting, UP: pyupgrade (modern syntax),
+# B: bugbear (common real bugs, e.g. mutable default args) -- a solid, low-noise
+# baseline for a codebase adopting linting for the first time. Not turning on
+# stricter rule sets (e.g. docstring/complexity rules) yet; can expand later
+# once the codebase is used to this baseline.
+select = ["E", "F", "I", "W", "UP", "B"]
+ignore = [
+    "E501",  # line-too-long -- Black already enforces this; avoids double-reporting
+    "E402",  # module-import-not-at-top -- this codebase isn't pip-installed as a
+             # package, so sys.path.append() before local imports is a deliberate,
+             # necessary pattern throughout (ingest_events.py, run_prefect_flows.py,
+             # scripts/*), not something to fix file-by-file. Revisit if/when
+             # SCRUM-6 (Docker migration) restructures this as an installable package.
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = [
+    "F401",  # unused imports -- fixtures are often imported for side effects
+]

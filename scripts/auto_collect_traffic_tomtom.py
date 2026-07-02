@@ -4,21 +4,19 @@ Automated traffic collection script using TomTom API.
 Run this every 30 minutes to collect traffic for upcoming events.
 """
 
-import sys
 import os
+import sys
 
 # Add project root to path (more robust)
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
-from collectors.tomtom_event_traffic_collector import run_tomtom_event_collection
-from datetime import datetime
 import logging
+from datetime import datetime
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+from collectors.tomtom_event_traffic_collector import run_tomtom_event_collection
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 print("=" * 70)
 print("Automated Event Traffic Collection (TomTom)")
@@ -33,8 +31,8 @@ try:
     stats = run_tomtom_event_collection(max_calls=50)
 
     # Log to file
-    log_file = os.path.join(project_root, 'traffic_collection_log.txt')
-    with open(log_file, 'a') as f:
+    log_file = os.path.join(project_root, "traffic_collection_log.txt")
+    with open(log_file, "a") as f:
         f.write(f"\n{datetime.now()} | ")
         f.write(f"Checked: {stats['events_checked']} | ")
         f.write(f"Collected: {stats['events_collected']} | ")
@@ -46,15 +44,16 @@ try:
     print("Collection complete!")
     print(f"See {log_file} for history")
     print("=" * 70)
-    
+
 except Exception as e:
     print(f"ERROR: {e}")
     import traceback
+
     traceback.print_exc()
-    
+
     # Log error
-    log_file = os.path.join(project_root, 'traffic_collection_log.txt')
-    with open(log_file, 'a') as f:
+    log_file = os.path.join(project_root, "traffic_collection_log.txt")
+    with open(log_file, "a") as f:
         f.write(f"\n{datetime.now()} | ERROR: {e}")
-    
+
     sys.exit(1)

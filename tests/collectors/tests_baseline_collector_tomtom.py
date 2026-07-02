@@ -1,4 +1,5 @@
 """Tests for collectors/baseline_collector_tomtom.py."""
+
 from datetime import datetime
 
 import pytest
@@ -57,12 +58,12 @@ class TestCollectBaselineForVenueTomtom:
             return_value={"measurement_time": datetime.now(), "data_source": "tomtom"},
         )
 
-        collect_baseline_for_venue_tomtom(
-            venue_id=3, venue_name="Venue", lat=35.5, lon=-106.5
-        )
+        collect_baseline_for_venue_tomtom(venue_id=3, venue_name="Venue", lat=35.5, lon=-106.5)
 
         mock_measure.assert_called_once_with(
-            origin_lat=35.5, origin_lng=-106.5,
-            dest_lat=35.5, dest_lng=-106.5,
+            origin_lat=35.5,
+            origin_lng=-106.5,
+            dest_lat=35.5,
+            dest_lng=-106.5,
             point_name="Venue",
         )

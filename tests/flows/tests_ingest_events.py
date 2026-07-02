@@ -2,6 +2,7 @@
 Tests for flows/ingest_events.py.
 
 """
+
 from datetime import date, timedelta
 
 import pytest
@@ -42,10 +43,14 @@ def raw_scraped_event(**overrides):
 # scrape_events_task (scraper mocked)
 # ---------------------------------------------------------------------------
 
+
 class TestScrapeEventsTask:
     def test_returns_scraper_output(self, mocker):
         mock_scrape = mocker.patch("flows.ingest_events.scrape_events_with_details")
-        mock_scrape.return_value = [raw_scraped_event(), raw_scraped_event(event_name="Chile Festival")]
+        mock_scrape.return_value = [
+            raw_scraped_event(),
+            raw_scraped_event(event_name="Chile Festival"),
+        ]
 
         result = scrape_events_task(max_pages=2)
 
@@ -61,6 +66,7 @@ class TestScrapeEventsTask:
 # ---------------------------------------------------------------------------
 # validate_events_task (real validate_event logic, no DB involved)
 # ---------------------------------------------------------------------------
+
 
 class TestValidateEventsTask:
     def test_valid_future_event_passes(self):
@@ -107,6 +113,7 @@ class TestValidateEventsTask:
 # load_events_task (real DB)
 # ---------------------------------------------------------------------------
 
+
 class TestLoadEventsTask:
     def test_loading_into_empty_db_reports_all_as_new(self):
         events = [
@@ -141,6 +148,7 @@ class TestLoadEventsTask:
 # which already has its own tests -- just confirm the task wires it through)
 # ---------------------------------------------------------------------------
 
+
 class TestGeocodeVenuesTask:
     def test_delegates_to_geocode_and_link_events(self, mocker):
         mock_geocode = mocker.patch("database.db_utils.geocode_and_link_events", return_value=3)
@@ -154,6 +162,7 @@ class TestGeocodeVenuesTask:
 # division-by-zero the print statements defend against)
 # ---------------------------------------------------------------------------
 
+
 class TestGenerateSummaryTask:
     def test_summary_on_empty_database_does_not_raise(self):
         load_stats = {"events_loaded": 0, "new_events": 0, "updated_events": 0, "total_in_db": 0}
@@ -163,9 +172,16 @@ class TestGenerateSummaryTask:
         assert summary["multi_day_count"] == 0
 
     def test_summary_reflects_loaded_events(self):
-        load_events_task([
-            {"event_name": "A", "venue_name": "V", "event_start_date": date.today(), "category": "Music"},
-        ])
+        load_events_task(
+            [
+                {
+                    "event_name": "A",
+                    "venue_name": "V",
+                    "event_start_date": date.today(),
+                    "category": "Music",
+                },
+            ]
+        )
         load_stats = {"events_loaded": 1, "new_events": 1, "updated_events": 0, "total_in_db": 1}
         summary = generate_summary_task(load_stats)
         assert summary["database_stats"]["total_events"] == 1

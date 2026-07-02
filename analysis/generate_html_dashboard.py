@@ -4,14 +4,15 @@ Creates a self-contained HTML file that can be shared.
 """
 
 import sys
-sys.path.append('C:\\Users\\lanee\\Desktop\\whatspoppingABQ')
+
+sys.path.append("C:\\Users\\lanee\\Desktop\\whatspoppingABQ")
+
+from datetime import datetime
+
+import pandas as pd
+import plotly.express as px
 
 from database.db_utils import query_to_dataframe
-import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import pandas as pd
-from datetime import datetime
 
 print("=" * 70)
 print("Generating HTML Dashboard")
@@ -25,7 +26,7 @@ print()
 
 # Load data using new function
 events_query = """
-    SELECT 
+    SELECT
         e.event_id,
         e.event_name,
         e.event_start_date,
@@ -46,32 +47,31 @@ events_query = """
 events_df = query_to_dataframe(events_query)
 
 # Convert Decimal to float
-numeric_cols = ['latitude', 'longitude', 'avg_delay_before', 
-                'avg_delay_during', 'impact_minutes']
+numeric_cols = ["latitude", "longitude", "avg_delay_before", "avg_delay_during", "impact_minutes"]
 
 for col in numeric_cols:
     if col in events_df.columns:
-        events_df[col] = pd.to_numeric(events_df[col], errors='coerce')
+        events_df[col] = pd.to_numeric(events_df[col], errors="coerce")
 
 category_query = "SELECT * FROM category_traffic_impact ORDER BY avg_impact_minutes DESC"
 category_df = query_to_dataframe(category_query)
 
 # Convert numeric columns
-numeric_cols = ['event_count', 'avg_impact_minutes', 'max_impact_minutes']
+numeric_cols = ["event_count", "avg_impact_minutes", "max_impact_minutes"]
 
 for col in numeric_cols:
     if col in category_df.columns:
-        category_df[col] = pd.to_numeric(category_df[col], errors='coerce')
+        category_df[col] = pd.to_numeric(category_df[col], errors="coerce")
 
 print(f"Loaded {len(events_df)} events")
 print(f"Loaded {len(category_df)} categories")
 print()
 
 # Add impact level
-events_df['impact_level'] = pd.cut(
-    events_df['impact_minutes'],
-    bins=[-float('inf'), 1, 2, 5, float('inf')],
-    labels=['Low', 'Moderate', 'High', 'Severe']
+events_df["impact_level"] = pd.cut(
+    events_df["impact_minutes"],
+    bins=[-float("inf"), 1, 2, 5, float("inf")],
+    labels=["Low", "Moderate", "High", "Severe"],
 )
 
 # Create dashboard
@@ -80,39 +80,39 @@ print("Creating visualizations...")
 # 1. Category bar chart
 fig_category = px.bar(
     category_df,
-    x='category',
-    y='avg_impact_minutes',
-    title='Average Traffic Impact by Event Category',
-    labels={'avg_impact_minutes': 'Average Delay (minutes)', 'category': 'Category'},
-    color='avg_impact_minutes',
-    color_continuous_scale='RdYlGn_r'
+    x="category",
+    y="avg_impact_minutes",
+    title="Average Traffic Impact by Event Category",
+    labels={"avg_impact_minutes": "Average Delay (minutes)", "category": "Category"},
+    color="avg_impact_minutes",
+    color_continuous_scale="RdYlGn_r",
 )
 fig_category.update_layout(xaxis_tickangle=-45, height=500)
 
 # 2. Impact pie chart
-impact_counts = events_df['impact_level'].value_counts()
+impact_counts = events_df["impact_level"].value_counts()
 fig_pie = px.pie(
     values=impact_counts.values,
     names=impact_counts.index,
-    title='Event Distribution by Impact Level',
+    title="Event Distribution by Impact Level",
     color=impact_counts.index,
     color_discrete_map={
-        'Low': '#90EE90',
-        'Moderate': '#FFD700',
-        'High': '#FFA500',
-        'Severe': '#FF4500'
-    }
+        "Low": "#90EE90",
+        "Moderate": "#FFD700",
+        "High": "#FFA500",
+        "Severe": "#FF4500",
+    },
 )
 
 # 3. Timeline scatter
 fig_timeline = px.scatter(
     events_df,
-    x='event_start_date',
-    y='impact_minutes',
-    color='category',
-    hover_data=['event_name', 'venue_name'],
-    title='Traffic Impact Over Time',
-    labels={'impact_minutes': 'Traffic Delay (minutes)', 'event_start_date': 'Date'}
+    x="event_start_date",
+    y="impact_minutes",
+    color="category",
+    hover_data=["event_name", "venue_name"],
+    title="Traffic Impact Over Time",
+    labels={"impact_minutes": "Traffic Delay (minutes)", "event_start_date": "Date"},
 )
 fig_timeline.add_hline(y=2, line_dash="dash", line_color="orange")
 fig_timeline.add_hline(y=5, line_dash="dash", line_color="red")
@@ -121,20 +121,19 @@ fig_timeline.update_layout(height=500)
 # 4. Map
 fig_map = px.scatter_mapbox(
     events_df,
-    lat='latitude',
-    lon='longitude',
-    color='impact_minutes',
-    size='impact_minutes',
-    hover_name='event_name',
-    hover_data=['venue_name', 'category'],
-    color_continuous_scale='RdYlGn_r',
+    lat="latitude",
+    lon="longitude",
+    color="impact_minutes",
+    size="impact_minutes",
+    hover_name="event_name",
+    hover_data=["venue_name", "category"],
+    color_continuous_scale="RdYlGn_r",
     zoom=10,
     height=600,
-    title='Event Locations by Traffic Impact'
+    title="Event Locations by Traffic Impact",
 )
 fig_map.update_layout(
-    mapbox_style="open-street-map",
-    mapbox_center={"lat": 35.0844, "lon": -106.6504}
+    mapbox_style="open-street-map", mapbox_center={"lat": 35.0844, "lon": -106.6504}
 )
 
 # Create HTML
@@ -204,7 +203,7 @@ html_content = f"""
 <body>
     <h1> Albuquerque Event Traffic Impact Dashboard</h1>
     <p class="subtitle">Analyzing how events affect local traffic patterns</p>
-    
+
     <div class="metrics">
         <div class="metric">
             <div class="metric-value">{len(events_df)}</div>
@@ -223,28 +222,28 @@ html_content = f"""
             <div class="metric-label">Event Categories</div>
         </div>
     </div>
-    
+
     <div class="chart-container">
         <div id="category-chart"></div>
     </div>
-    
+
     <div class="chart-container">
         <div id="pie-chart"></div>
     </div>
-    
+
     <div class="chart-container">
         <div id="timeline-chart"></div>
     </div>
-    
+
     <div class="chart-container">
         <div id="map-chart"></div>
     </div>
-    
+
     <div class="footer">
-        Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | 
+        Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} |
         What's Popping ABQ - Event Traffic Analytics
     </div>
-    
+
     <script>
         {fig_category.to_html(include_plotlyjs=False, div_id="category-chart")}
         {fig_pie.to_html(include_plotlyjs=False, div_id="pie-chart")}
@@ -258,7 +257,7 @@ html_content = f"""
 # Save HTML
 filename = f"traffic_dashboard_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
 
-with open(filename, 'w', encoding='utf-8') as f:
+with open(filename, "w", encoding="utf-8") as f:
     f.write(html_content)
 
 print(f" Dashboard saved to: {filename}")

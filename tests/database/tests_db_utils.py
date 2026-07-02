@@ -5,6 +5,7 @@ Run against a real test Postgres (see tests/conftest.py) rather than mocks,
 per SCRUM-16 scoping decision. External services (geocoding API) are still
 mocked -- those aren't the database's responsibility to test.
 """
+
 from datetime import date, datetime, time
 
 import psycopg2
@@ -63,6 +64,7 @@ def make_event(**overrides):
 # insert_events
 # ---------------------------------------------------------------------------
 
+
 class TestInsertEvents:
     def test_empty_list_returns_zero(self):
         assert insert_events([]) == 0
@@ -109,6 +111,7 @@ class TestInsertEvents:
 # read/query functions
 # ---------------------------------------------------------------------------
 
+
 class TestEventQueries:
     def test_get_event_count_empty(self):
         assert get_event_count() == 0
@@ -118,39 +121,49 @@ class TestEventQueries:
         assert len(get_recent_events(limit=3)) == 3
 
     def test_get_events_by_date_range(self):
-        insert_events([
-            make_event(event_name="In range", event_start_date=date(2026, 8, 15)),
-            make_event(event_name="Out of range", event_start_date=date(2026, 12, 25)),
-        ])
+        insert_events(
+            [
+                make_event(event_name="In range", event_start_date=date(2026, 8, 15)),
+                make_event(event_name="Out of range", event_start_date=date(2026, 12, 25)),
+            ]
+        )
         results = get_events_by_date_range("2026-08-01", "2026-08-31")
         names = {e["event_name"] for e in results}
         assert names == {"In range"}
 
     def test_get_events_by_category(self):
-        insert_events([
-            make_event(event_name="Concert", category="Music"),
-            make_event(event_name="Standup", category="Comedy"),
-        ])
+        insert_events(
+            [
+                make_event(event_name="Concert", category="Music"),
+                make_event(event_name="Standup", category="Comedy"),
+            ]
+        )
         results = get_events_by_category("Music")
         assert len(results) == 1
         assert results[0]["event_name"] == "Concert"
 
     def test_get_category_counts(self):
-        insert_events([
-            make_event(event_name="A", category="Music"),
-            make_event(event_name="B", category="Music"),
-            make_event(event_name="C", category="Comedy"),
-        ])
+        insert_events(
+            [
+                make_event(event_name="A", category="Music"),
+                make_event(event_name="B", category="Music"),
+                make_event(event_name="C", category="Comedy"),
+            ]
+        )
         counts = get_category_counts()
         assert counts == {"Music": 2, "Comedy": 1}
 
     def test_get_multi_day_events_computes_duration(self):
-        insert_events([make_event(
-            event_name="Fiesta",
-            is_multi_day=True,
-            event_start_date=date(2026, 10, 1),
-            event_end_date=date(2026, 10, 9),
-        )])
+        insert_events(
+            [
+                make_event(
+                    event_name="Fiesta",
+                    is_multi_day=True,
+                    event_start_date=date(2026, 10, 1),
+                    event_end_date=date(2026, 10, 9),
+                )
+            ]
+        )
         results = get_multi_day_events()
         assert len(results) == 1
         # +1 to include both start and end date
@@ -171,12 +184,26 @@ class TestEventStatistics:
         assert stats["top_venues"] == {}
 
     def test_stats_reflect_inserted_data(self):
-        insert_events([
-            make_event(event_name="A", category="Music", cost_min=10, cost_max=20, is_multi_day=False),
-            make_event(event_name="B", category="Music", cost_min=0, cost_max=0, cost_description="Free"),
-            make_event(event_name="C", category="Comedy", is_multi_day=True,
-                       event_end_date=date(2026, 8, 3)),
-        ])
+        insert_events(
+            [
+                make_event(
+                    event_name="A", category="Music", cost_min=10, cost_max=20, is_multi_day=False
+                ),
+                make_event(
+                    event_name="B",
+                    category="Music",
+                    cost_min=0,
+                    cost_max=0,
+                    cost_description="Free",
+                ),
+                make_event(
+                    event_name="C",
+                    category="Comedy",
+                    is_multi_day=True,
+                    event_end_date=date(2026, 8, 3),
+                ),
+            ]
+        )
         stats = get_event_statistics()
         assert stats["total_events"] == 3
         assert stats["multi_day_events"] == 1
@@ -200,6 +227,7 @@ class TestClearAllEvents:
 # ---------------------------------------------------------------------------
 # venues
 # ---------------------------------------------------------------------------
+
 
 class TestVenues:
     def test_insert_venue_returns_id(self):
@@ -227,6 +255,7 @@ class TestVenues:
 # ---------------------------------------------------------------------------
 # traffic measurements
 # ---------------------------------------------------------------------------
+
 
 class TestTrafficMeasurements:
     def test_insert_and_retrieve_measurement(self, make_venue):
@@ -287,6 +316,7 @@ class TestTrafficMeasurements:
 # to test Google's API, and we don't want tests burning API quota)
 # ---------------------------------------------------------------------------
 
+
 class TestGeocodeAndLinkEvents:
     def test_no_venues_need_geocoding_returns_zero(self):
         insert_events([make_event(latitude=35.0, longitude=-106.0)])
@@ -303,7 +333,9 @@ class TestGeocodeAndLinkEvents:
         mock_geocode.assert_called_once_with("Mystery Venue")
 
         with db_conn.cursor() as cur:
-            cur.execute("SELECT latitude, longitude FROM app.events WHERE venue_name = 'Mystery Venue'")
+            cur.execute(
+                "SELECT latitude, longitude FROM app.events WHERE venue_name = 'Mystery Venue'"
+            )
             lat, lng = cur.fetchone()
         assert float(lat) == 35.1
         assert float(lng) == -106.1

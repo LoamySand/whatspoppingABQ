@@ -9,13 +9,12 @@ Usage:
 
 By default runs in-place under repository root.
 """
+
 from __future__ import annotations
 
 import argparse
 import os
-import sys
-from typing import Iterable, Tuple
-
+from collections.abc import Iterable
 
 EMOJI_RANGES = [
     (0x1F300, 0x1F5FF),
@@ -44,7 +43,7 @@ def is_emoji_char(ch: str) -> bool:
     return False
 
 
-def remove_emojis_from_text(text: str) -> Tuple[str, int]:
+def remove_emojis_from_text(text: str) -> tuple[str, int]:
     out_chars = []
     removed = 0
     for ch in text:
@@ -90,9 +89,9 @@ def should_process_file(path: str) -> bool:
     return True
 
 
-def process_file(path: str, dry_run: bool = True) -> Tuple[int, bool]:
+def process_file(path: str, dry_run: bool = True) -> tuple[int, bool]:
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = f.read()
     except Exception:
         return (0, False)

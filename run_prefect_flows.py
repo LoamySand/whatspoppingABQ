@@ -4,8 +4,9 @@ Unified Prefect flow server
 Runs ALL flows: traffic collection + event scraping
 """
 
-import sys
 import os
+import sys
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -24,23 +25,31 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # TomTom traffic flows, the Google-Maps-geocoding event ingestion flow,
 # and registers email failure/crash alerts, so it needs all four groups.
 from utils.config_validation import validate_env
-validate_env("database", "tomtom", "google_maps", "email_alerts",
-             service_name="Prefect flow server (run_prefect_flows.py)")
+
+validate_env(
+    "database",
+    "tomtom",
+    "google_maps",
+    "email_alerts",
+    service_name="Prefect flow server (run_prefect_flows.py)",
+)
+
+import time
+from datetime import timedelta
 
 from prefect import serve
 from prefect.schedules import Cron
-from datetime import timedelta
-import time
 
 # Import all flows
-from flows.collect_traffic import event_traffic_flow, baseline_traffic_flow
+from flows.collect_traffic import baseline_traffic_flow, event_traffic_flow
 from flows.ingest_events import event_ingestion_flow
+
 
 # Verify server is reachable before starting
 def wait_for_server(max_attempts=30):
     """Wait for Prefect server to be ready"""
     import requests
-    
+
     print("Checking server connection...")
     health_url = PREFECT_API_URL.rstrip("/") + "/health"
     for attempt in range(1, max_attempts + 1):
@@ -53,21 +62,22 @@ def wait_for_server(max_attempts=30):
             if attempt % 5 == 0:
                 print(f"  Still waiting for server... (attempt {attempt}/{max_attempts})")
             time.sleep(2)
-    
+
     print("[ERROR] Could not connect to Prefect server")
     print("Make sure 'prefect server start' is running")
     return False
+
 
 if __name__ == "__main__":
     print("=" * 70)
     print("Starting ALL Prefect Flows")
     print("=" * 70)
     print()
-    
+
     # Wait for server
     if not wait_for_server():
         sys.exit(1)
-    
+
     print()
     print("Traffic Collection:")
     print("  - Event Traffic: Every 30 minutes")
@@ -80,48 +90,35 @@ if __name__ == "__main__":
     print("Press Ctrl+C to stop")
     print("=" * 70)
     print()
-    
+
     # Serve ALL flows
     serve(
         # ===== TRAFFIC COLLECTION =====
-        
         # Event traffic - every 30 minutes
-        event_traffic_flow.to_deployment(
-            name="event-traffic",
-            interval=timedelta(minutes=30)
-        ),
-        
+        event_traffic_flow.to_deployment(name="event-traffic", interval=timedelta(minutes=30)),
         # Baseline traffic - 6 times per day
         baseline_traffic_flow.to_deployment(
-            name="baseline-7am",
-            schedule=Cron("0 7 * * *", timezone="America/Denver")
+            name="baseline-7am", schedule=Cron("0 7 * * *", timezone="America/Denver")
         ),
         baseline_traffic_flow.to_deployment(
-            name="baseline-12pm",
-            schedule=Cron("0 12 * * *", timezone="America/Denver")
+            name="baseline-12pm", schedule=Cron("0 12 * * *", timezone="America/Denver")
         ),
         baseline_traffic_flow.to_deployment(
-            name="baseline-5pm",
-            schedule=Cron("0 17 * * *", timezone="America/Denver")
+            name="baseline-5pm", schedule=Cron("0 17 * * *", timezone="America/Denver")
         ),
         baseline_traffic_flow.to_deployment(
-            name="baseline-7pm",
-            schedule=Cron("0 19 * * *", timezone="America/Denver")
+            name="baseline-7pm", schedule=Cron("0 19 * * *", timezone="America/Denver")
         ),
         baseline_traffic_flow.to_deployment(
-            name="baseline-9pm",
-            schedule=Cron("0 21 * * *", timezone="America/Denver")
+            name="baseline-9pm", schedule=Cron("0 21 * * *", timezone="America/Denver")
         ),
         baseline_traffic_flow.to_deployment(
-            name="baseline-11pm",
-            schedule=Cron("0 23 * * *", timezone="America/Denver")
+            name="baseline-11pm", schedule=Cron("0 23 * * *", timezone="America/Denver")
         ),
-        
         # ===== EVENT SCRAPING =====
-        
         # Event scraping - weekly on Mondays at 9am
         event_ingestion_flow.to_deployment(
             name="event-scraping-weekly",
-            schedule=Cron("0 9 * * 1", timezone="America/Denver")  # Monday 9am
-        )
+            schedule=Cron("0 9 * * 1", timezone="America/Denver"),  # Monday 9am
+        ),
     )

@@ -2,6 +2,7 @@
 Tests for collectors/tomtom_flow_collector.py.
 
 """
+
 import json
 
 import pytest

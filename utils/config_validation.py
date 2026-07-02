@@ -44,8 +44,7 @@ def validate_env(*groups: str, service_name: str = None) -> None:
     unknown_groups = [g for g in groups if g not in REQUIRED_VARS]
     if unknown_groups:
         raise ValueError(
-            f"Unknown config group(s): {unknown_groups}. "
-            f"Known groups: {list(REQUIRED_VARS)}"
+            f"Unknown config group(s): {unknown_groups}. " f"Known groups: {list(REQUIRED_VARS)}"
         )
 
     missing = []

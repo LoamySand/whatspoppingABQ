@@ -4,11 +4,13 @@ Run this once to geocode all venues from events table.
 """
 
 import sys
-sys.path.append('C:\\Users\\lanee\\Desktop\\whatspoppingABQ')
+
+sys.path.append("C:\\Users\\lanee\\Desktop\\whatspoppingABQ")
+
+import logging
 
 from database.db_utils import get_connection, insert_venue
 from utils.geocoding import batch_geocode_venues
-import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -26,15 +28,15 @@ conn = get_connection()
 try:
     with conn.cursor() as cur:
         cur.execute("""
-            SELECT DISTINCT venue_name 
-            FROM events 
-            WHERE venue_name IS NOT NULL 
+            SELECT DISTINCT venue_name
+            FROM events
+            WHERE venue_name IS NOT NULL
               AND venue_name != ''
             ORDER BY venue_name
         """)
-        
+
         venue_names = [row[0] for row in cur.fetchall()]
-        
+
 finally:
     conn.close()
 
@@ -71,10 +73,10 @@ for venue_name, geocode_data in geocode_results.items():
         try:
             venue_id = insert_venue(
                 venue_name=venue_name,
-                latitude=geocode_data['latitude'],
-                longitude=geocode_data['longitude'],
-                address=geocode_data['formatted_address'],
-                place_id=geocode_data['place_id']
+                latitude=geocode_data["latitude"],
+                longitude=geocode_data["longitude"],
+                address=geocode_data["formatted_address"],
+                place_id=geocode_data["place_id"],
             )
             success_count += 1
             print(f" Inserted: {venue_name} (ID: {venue_id})")
@@ -102,12 +104,12 @@ try:
             WHERE e.venue_name = v.venue_name
               AND e.venue_id IS NULL
         """)
-        
+
         updated = cur.rowcount
         conn.commit()
-        
+
         print(f" Linked {updated} events to venues")
-        
+
 finally:
     conn.close()
 
@@ -131,7 +133,7 @@ try:
             FROM venue_locations
             LIMIT 5
         """)
-        
+
         print("Sample venues in database:")
         for row in cur.fetchall():
             print(f"  - {row[0]}")

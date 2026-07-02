@@ -5,9 +5,11 @@ Run this daily to track API call usage.
 """
 
 import sys
-sys.path.append('C:\\Users\\lanee\\Desktop\\whatspoppingABQ')
+
+sys.path.append("C:\\Users\\lanee\\Desktop\\whatspoppingABQ")
 
 from datetime import datetime, timedelta
+
 from database.db_utils import get_connection
 
 now = datetime.now()
@@ -16,7 +18,7 @@ hour = now.hour
 minute = now.minute
 
 print("=" * 70)
-print(f"Collection Schedule & API Usage Report")
+print("Collection Schedule & API Usage Report")
 print(f"{now.strftime('%A, %B %d, %Y - %H:%M')}")
 print("=" * 70)
 print()
@@ -34,7 +36,7 @@ try:
         # Get total venues
         cur.execute("SELECT COUNT(*) FROM venue_locations")
         total_venues = cur.fetchone()[0]
-        
+
         group_size = total_venues // 2
 
 finally:
@@ -52,11 +54,11 @@ elif 22 <= day <= 30:
     baseline_group = 2
 else:
     print("○ INACTIVE (Week 1 or Week 3)")
-    print(f"  Next collection: ", end="")
+    print("  Next collection: ", end="")
     if day < 8:
-        print(f"Week 4 (day 22) of this month")
+        print("Week 4 (day 22) of this month")
     else:
-        print(f"Week 2 of next month")
+        print("Week 2 of next month")
     baseline_active = False
     baseline_group = None
 
@@ -67,10 +69,10 @@ if baseline_active:
     times = ["07:00", "12:00", "17:00", "19:00", "21:00", "23:00"]
     completed_collections = 0
     upcoming_collections = 0
-    
+
     for t in times:
-        t_hour, t_minute = map(int, t.split(':'))
-        
+        t_hour, t_minute = map(int, t.split(":"))
+
         if t_hour < hour or (t_hour == hour and t_minute <= minute):
             status = " Completed"
             completed_collections += 1
@@ -79,20 +81,20 @@ if baseline_active:
         else:
             status = "○ Upcoming"
             upcoming_collections += 1
-        
+
         print(f"  {status:15s} {t}")
-    
+
     print()
-    print(f"Today's baseline API usage:")
+    print("Today's baseline API usage:")
     calls_per_slot = group_size * 4  # 4 directions per venue
     total_today = calls_per_slot * 6
     completed_calls = calls_per_slot * completed_collections
     remaining_calls = calls_per_slot * upcoming_collections
-    
+
     print(f"  Completed: {completed_calls:,} calls ({completed_collections}/6 time slots)")
     print(f"  Remaining: {remaining_calls:,} calls ({upcoming_collections}/6 time slots)")
     print(f"  Total today: {total_today:,} calls")
-    print(f"  Daily limit: 2,500 calls (TomTom free tier)")
+    print("  Daily limit: 2,500 calls (TomTom free tier)")
     print(f"  Usage: {total_today/2500*100:.1f}% of daily limit")
 
 print()
@@ -110,7 +112,7 @@ try:
     with conn.cursor() as cur:
         # Get events today with times
         cur.execute("""
-            SELECT 
+            SELECT
                 e.event_id,
                 e.event_name,
                 e.event_start_time,
@@ -122,16 +124,18 @@ try:
               AND e.event_start_time IS NOT NULL
             ORDER BY e.event_start_time
         """)
-        
+
         events_today = []
         for row in cur.fetchall():
-            events_today.append({
-                'event_id': row[0],
-                'event_name': row[1],
-                'event_start_time': row[2],
-                'category': row[3],
-                'venue_name': row[4]
-            })
+            events_today.append(
+                {
+                    "event_id": row[0],
+                    "event_name": row[1],
+                    "event_start_time": row[2],
+                    "category": row[3],
+                    "venue_name": row[4],
+                }
+            )
 
 finally:
     conn.close()
@@ -144,25 +148,25 @@ if not events_today:
 else:
     print(f" {len(events_today)} event(s) with scheduled times today")
     print()
-    
+
     total_event_calls = 0
-    
+
     for i, event in enumerate(events_today, 1):
-        event_time = event['event_start_time']
+        event_time = event["event_start_time"]
         event_datetime = datetime.combine(now.date(), event_time)
-        
+
         print(f"Event {i}: {event['event_name'][:50]}")
         print(f"  Time: {event_time.strftime('%H:%M')}")
         print(f"  Venue: {event['venue_name'][:40]}")
         print(f"  Category: {event['category']}")
         print()
-        
+
         # Calculate collection windows (every 30 min from -1hr to +1hr)
         collection_points = []
-        
+
         for offset_minutes in range(-60, 61, 30):
             collection_time = event_datetime + timedelta(minutes=offset_minutes)
-            
+
             # Determine status
             if collection_time < now:
                 if (now - collection_time) < timedelta(minutes=30):
@@ -171,7 +175,7 @@ else:
                     status = " Completed"
             else:
                 status = "○ Upcoming"
-            
+
             window_label = ""
             if offset_minutes < -15:
                 window_label = "before"
@@ -179,40 +183,46 @@ else:
                 window_label = "after"
             else:
                 window_label = "during"
-            
-            collection_points.append({
-                'time': collection_time,
-                'offset': offset_minutes,
-                'status': status,
-                'window': window_label
-            })
-        
-        print(f"  Collection schedule (5 time points, 2 directions each = 10 calls):")
-        
+
+            collection_points.append(
+                {
+                    "time": collection_time,
+                    "offset": offset_minutes,
+                    "status": status,
+                    "window": window_label,
+                }
+            )
+
+        print("  Collection schedule (5 time points, 2 directions each = 10 calls):")
+
         completed = 0
         upcoming = 0
-        
+
         for point in collection_points:
-            print(f"    {point['status']:15s} {point['time'].strftime('%H:%M')} ({point['offset']:+4d} min, {point['window']})")
-            
-            if "Completed" in point['status']:
+            print(
+                f"    {point['status']:15s} {point['time'].strftime('%H:%M')} ({point['offset']:+4d} min, {point['window']})"
+            )
+
+            if "Completed" in point["status"]:
                 completed += 1
-            elif "Upcoming" in point['status']:
+            elif "Upcoming" in point["status"]:
                 upcoming += 1
-        
+
         calls_this_event = 10  # 5 points × 2 directions
         completed_calls = (completed / 5) * calls_this_event
         remaining_calls = (upcoming / 5) * calls_this_event
-        
+
         print()
-        print(f"  API calls: {completed_calls:.0f} completed, {remaining_calls:.0f} remaining ({calls_this_event} total)")
+        print(
+            f"  API calls: {completed_calls:.0f} completed, {remaining_calls:.0f} remaining ({calls_this_event} total)"
+        )
         print()
-        
+
         total_event_calls += calls_this_event
-    
+
     print("-" * 70)
     print(f"Total event API usage today: {total_event_calls} calls (Google Maps)")
-    print(f"Monthly free tier: 10k calls (~322 a day)")
+    print("Monthly free tier: 10k calls (~322 a day)")
     print(f"Cost today: ${total_event_calls * 0.007:.2f}")
 
 print()
@@ -237,7 +247,7 @@ print(f"Total:                 {baseline_calls_today + event_calls_today:5,} cal
 print()
 
 if baseline_active:
-    print(f"TomTom daily limit:    2,500 calls (free tier)")
+    print("TomTom daily limit:    2,500 calls (free tier)")
     print(f"TomTom usage today:    {baseline_calls_today/2500*100:5.1f}%")
     print()
 
@@ -259,7 +269,7 @@ conn = get_connection()
 try:
     with conn.cursor() as cur:
         cur.execute("""
-            SELECT 
+            SELECT
                 DATE(measurement_time) as date,
                 data_source,
                 COUNT(*) as calls
@@ -268,32 +278,32 @@ try:
             GROUP BY DATE(measurement_time), data_source
             ORDER BY date DESC, data_source
         """)
-        
+
         usage_by_day = {}
         for row in cur.fetchall():
             date, source, calls = row
             if date not in usage_by_day:
-                usage_by_day[date] = {'google_maps': 0, 'tomtom': 0}
+                usage_by_day[date] = {"google_maps": 0, "tomtom": 0}
             usage_by_day[date][source] = calls
-        
+
         if usage_by_day:
             print(f"{'Date':<12} {'Google Maps':>12} {'TomTom':>12}")
             print("-" * 70)
-            
+
             total_google = 0
             total_tomtom = 0
-            
+
             for date in sorted(usage_by_day.keys(), reverse=True):
-                google = usage_by_day[date].get('google_maps', 0)
-                tomtom = usage_by_day[date].get('tomtom', 0)
+                google = usage_by_day[date].get("google_maps", 0)
+                tomtom = usage_by_day[date].get("tomtom", 0)
                 total = google + tomtom
                 cost = google * 0.007
-                
+
                 total_google += google
                 total_tomtom += tomtom
-                
+
                 print(f"{str(date):<12} {google:>12,} {tomtom:>12,}")
-            
+
             print("-" * 70)
             print(f"{'7-day total':<12} {total_google:>12,} {total_tomtom:>12,}")
             print()

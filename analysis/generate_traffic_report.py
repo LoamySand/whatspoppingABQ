@@ -3,13 +3,12 @@ Generate comprehensive traffic impact report.
 """
 
 import sys
-sys.path.append('C:\\Users\\lanee\\Desktop\\whatspoppingABQ')
 
-from analysis.event_traffic_correlation import (
-    analyze_all_events,
-    get_impact_summary
-)
+sys.path.append("C:\\Users\\lanee\\Desktop\\whatspoppingABQ")
+
 from datetime import datetime
+
+from analysis.event_traffic_correlation import analyze_all_events, get_impact_summary
 
 print("=" * 70)
 print("EVENT TRAFFIC IMPACT REPORT")
@@ -37,12 +36,12 @@ print("-" * 70)
 print(f"Events analyzed: {summary['total_events_analyzed']}")
 print()
 
-if summary['impact_levels']:
+if summary["impact_levels"]:
     print("Traffic Impact Distribution:")
-    for level in ['severe', 'high', 'moderate', 'low', 'unknown']:
-        count = summary['impact_levels'].get(level, 0)
+    for level in ["severe", "high", "moderate", "low", "unknown"]:
+        count = summary["impact_levels"].get(level, 0)
         if count > 0:
-            pct = count * 100 / summary['total_events_analyzed']
+            pct = count * 100 / summary["total_events_analyzed"]
             print(f"  {level.capitalize():10s}: {count:3d} events ({pct:5.1f}%)")
 print()
 
@@ -52,12 +51,10 @@ print("Average traffic delay increase by event category:")
 print()
 
 for cat, avg_delay in sorted(
-    summary['category_avg_impact'].items(),
-    key=lambda x: x[1],
-    reverse=True
+    summary["category_avg_impact"].items(), key=lambda x: x[1], reverse=True
 ):
     print(f"  {cat:35s}: +{avg_delay:6.2f} minutes")
-    
+
     # Determine recommendation
     if avg_delay > 5:
         rec = "  HIGH IMPACT - Consider traffic management"
@@ -67,7 +64,7 @@ for cat, avg_delay in sorted(
         rec = " LOW IMPACT"
     else:
         rec = " MINIMAL IMPACT"
-    
+
     print(f"     {rec}")
     print()
 
@@ -77,11 +74,13 @@ print("-" * 70)
 print("Events causing the most traffic disruption:")
 print()
 
-for i, event in enumerate(summary['top_impact_events'][:10], 1):
+for i, event in enumerate(summary["top_impact_events"][:10], 1):
     print(f"{i}. {event['event_name']}")
     print(f"   Venue: {event['venue']}")
     print(f"   Category: {event['category']}")
-    print(f"   Traffic Impact: +{event['delay_increase']:.1f} min ({event['impact_level'].upper()})")
+    print(
+        f"   Traffic Impact: +{event['delay_increase']:.1f} min ({event['impact_level'].upper()})"
+    )
     print()
 
 print()
@@ -89,10 +88,7 @@ print("RECOMMENDATIONS")
 print("-" * 70)
 
 # Generate recommendations based on data
-high_impact_cats = [
-    cat for cat, delay in summary['category_avg_impact'].items()
-    if delay > 2
-]
+high_impact_cats = [cat for cat, delay in summary["category_avg_impact"].items() if delay > 2]
 
 if high_impact_cats:
     print("High-impact event categories:")
@@ -110,24 +106,24 @@ print("=" * 70)
 # Save report to file
 filename = f"traffic_impact_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
 
-with open(filename, 'w') as f:
+with open(filename, "w") as f:
     f.write("EVENT TRAFFIC IMPACT REPORT\n")
     f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
     f.write("=" * 70 + "\n\n")
-    
+
     # Write summary sections (simplified for file)
     f.write(f"Total events analyzed: {summary['total_events_analyzed']}\n\n")
-    
+
     f.write("Impact Levels:\n")
-    for level, count in summary['impact_levels'].items():
+    for level, count in summary["impact_levels"].items():
         f.write(f"  {level}: {count}\n")
-    
+
     f.write("\nCategory Average Impact:\n")
-    for cat, delay in summary['category_avg_impact'].items():
+    for cat, delay in summary["category_avg_impact"].items():
         f.write(f"  {cat}: +{delay:.2f} min\n")
-    
+
     f.write("\nTop Impact Events:\n")
-    for i, event in enumerate(summary['top_impact_events'][:10], 1):
+    for i, event in enumerate(summary["top_impact_events"][:10], 1):
         f.write(f"{i}. {event['event_name']} - {event['category']}\n")
         f.write(f"   Impact: +{event['delay_increase']:.1f} min\n")
 

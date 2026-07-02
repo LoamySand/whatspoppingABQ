@@ -2,6 +2,7 @@
 Tests for collectors/tomtom_event_traffic_collector.py.
 
 """
+
 from datetime import date, datetime, time, timedelta
 
 import pytest
@@ -36,6 +37,7 @@ def make_event(minutes_from_now=0, **overrides):
 # ---------------------------------------------------------------------------
 # should_collect_now_tomtom -- pure scheduling logic
 # ---------------------------------------------------------------------------
+
 
 class TestShouldCollectNowTomtom:
     @pytest.mark.parametrize("minutes_from_now", [-120, -90, -60, -30, 0, 30, 60, 90, 120])
@@ -101,6 +103,7 @@ class TestShouldCollectNowTomtom:
 # collect_traffic_for_event_tomtom (TomTom API mocked, DB real)
 # ---------------------------------------------------------------------------
 
+
 class TestCollectTrafficForEventTomtom:
     def test_successful_measurement_is_inserted(self, mocker, make_venue, db_conn):
         venue_id = make_venue(name="Isotopes Park")
@@ -162,6 +165,7 @@ class TestCollectTrafficForEventTomtom:
 # ---------------------------------------------------------------------------
 # get_events_needing_collection (real DB)
 # ---------------------------------------------------------------------------
+
 
 class TestGetEventsNeedingCollection:
     def test_returns_todays_timed_events(self, db_conn, make_venue):
@@ -227,6 +231,7 @@ class TestGetEventsNeedingCollection:
 # ---------------------------------------------------------------------------
 # run_tomtom_event_collection (orchestrator; API + measurement mocked)
 # ---------------------------------------------------------------------------
+
 
 class TestRunTomtomEventCollection:
     def test_no_events_returns_zeroed_stats(self, mocker):

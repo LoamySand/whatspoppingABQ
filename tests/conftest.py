@@ -2,6 +2,7 @@
 Shared pytest fixtures for the whatspoppingABQ test suite.
 
 """
+
 import os
 import sys
 import time
@@ -143,9 +144,7 @@ def clean_db(_verify_test_database):
     conn = db_utils.get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute(
-                f"TRUNCATE {', '.join(TABLES_IN_FK_ORDER)} RESTART IDENTITY CASCADE"
-            )
+            cur.execute(f"TRUNCATE {', '.join(TABLES_IN_FK_ORDER)} RESTART IDENTITY CASCADE")
         conn.commit()
     finally:
         conn.close()

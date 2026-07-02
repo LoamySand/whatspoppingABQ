@@ -1,24 +1,23 @@
 """
 Email notification utilities for pipeline alerts.
 """
-import smtplib
-import os
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from datetime import datetime
+
 import logging
+import os
+import smtplib
+from datetime import datetime
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 logger = logging.getLogger(__name__)
 
 
 def get_email_config():
     """Get email configuration from environment."""
-    email = os.getenv('ALERT_EMAIL')
-    password = os.getenv('GMAIL_APP_PASSWORD')
+    email = os.getenv("ALERT_EMAIL")
+    password = os.getenv("GMAIL_APP_PASSWORD")
     if not email or not password:
-        raise ValueError(
-            "ALERT_EMAIL and GMAIL_APP_PASSWORD must be set in .env"
-        )
+        raise ValueError("ALERT_EMAIL and GMAIL_APP_PASSWORD must be set in .env")
     return email, password
 
 
@@ -34,15 +33,15 @@ def send_email(subject: str, body: str, is_html: bool = False):
     try:
         email, password = get_email_config()
 
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = subject
-        msg['From'] = email
-        msg['To'] = email
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = email
+        msg["To"] = email
 
-        part = MIMEText(body, 'html' if is_html else 'plain')
+        part = MIMEText(body, "html" if is_html else "plain")
         msg.attach(part)
 
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(email, password)
             server.sendmail(email, email, msg.as_string())
 
@@ -54,7 +53,7 @@ def send_email(subject: str, body: str, is_html: bool = False):
 
 def send_failure_alert(flow_name: str, error: str, run_name: str = None):
     """Send a pipeline failure alert email."""
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     subject = f" Pipeline Failed: {flow_name}"
 
     body = f"""
@@ -73,13 +72,13 @@ def send_failure_alert(flow_name: str, error: str, run_name: str = None):
 
 def send_success_digest(flow_name: str, stats: dict):
     """Send a daily success digest email."""
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     subject = f" Daily Pipeline Success: {flow_name}"
 
     # Build stats rows
     stats_rows = ""
     for key, value in stats.items():
-        label = key.replace('_', ' ').title()
+        label = key.replace("_", " ").title()
         stats_rows += f"""
         <tr>
             <td style="padding: 6px 12px; border-bottom: 1px solid #eee;">
@@ -101,7 +100,7 @@ def send_success_digest(flow_name: str, stats: dict):
     </table>
     <hr>
     <p style="color: #666; font-size: 12px;">
-        This is your daily digest. If you stop receiving these, 
+        This is your daily digest. If you stop receiving these,
         the pipeline has stopped running.
     </p>
     """
@@ -110,7 +109,7 @@ def send_success_digest(flow_name: str, stats: dict):
 
 def send_crash_alert(flow_name: str, details: str = None):
     """Send a pipeline crash/timeout alert email."""
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     subject = f" Pipeline Crashed: {flow_name}"
 
     body = f"""

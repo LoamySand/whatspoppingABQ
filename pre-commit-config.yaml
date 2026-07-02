@@ -1,0 +1,22 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.20
+    hooks:
+      - id: ruff-check
+        # --fix: auto-apply safe fixes. --exit-zero: never block the commit,
+        # even on issues ruff can't auto-fix (e.g. bare excepts) -- those are
+        # printed as a warning instead. Per SCRUM-17 scoping: auto-fix what's
+        # fixable, warn (don't block) on the rest.
+        args: [--fix, --exit-zero]
+
+  - repo: https://github.com/psf/black
+    rev: 26.5.1
+    hooks:
+      - id: black
+        # Note: unlike ruff above, black's pre-commit hook DOES report failure
+        # the first time it reformats a file (that's how pre-commit signals
+        # "I changed your staged files, please look and re-stage them"). This
+        # is standard behavior for any auto-formatting hook, not something we
+        # can fully suppress while still having it format on commit. If black
+        # touches a file: `git add -u && git commit` again and it'll pass.
+        args: [--line-length=100]
