@@ -37,38 +37,18 @@ TABLES_IN_FK_ORDER = [
 ]
 
 
-@pytest.fixture(scope="session", autouse=True)
-def _prefect_test_harness():
-    """
-    Official Prefect pattern for testing tasks/flows: runs a temporary
-    SQLite-backed Prefect server for the whole test session instead of
-    Prefect's default ephemeral-subprocess-server-per-run behavior, which
-    is slow and produces noisy teardown errors under pytest.
-    """
-    with prefect_test_harness():
-        yield
+@pytest.fixture(scope="session")
+def _wait_for_test_db():
+    """Block until the docker-compose.test.yml Postgres is accepting connections.
 
-
-@pytest.fixture(scope="session", autouse=True)
-def _test_environment(_prefect_test_harness):
-    """
-    Force test DB env vars for the whole session and prevent db_utils from
-    reloading a local .env over them.
+    Runs BEFORE the Prefect test harness starts (see fixture ordering below),
+    so if the DB is unreachable we exit cleanly without needing to tear down
+    an already-started harness -- that unwind path is what produces the noisy
+    'I/O operation on closed file' logging traceback on early exit.
     """
     for key, value in TEST_DB_ENV.items():
         os.environ[key] = value
 
-    import database.db_utils as db_utils
-
-    original_load_dotenv = db_utils.load_dotenv
-    db_utils.load_dotenv = lambda *args, **kwargs: None
-    yield
-    db_utils.load_dotenv = original_load_dotenv
-
-
-@pytest.fixture(scope="session")
-def _wait_for_test_db(_test_environment):
-    """Block until the docker-compose.test.yml Postgres is accepting connections."""
     last_error = None
     for _ in range(30):
         try:
@@ -90,6 +70,40 @@ def _wait_for_test_db(_test_environment):
         "Start it first: docker compose -f docker-compose.test.yml up -d\n"
         f"Last error: {last_error}"
     )
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _prefect_test_harness(_wait_for_test_db):
+    """
+    Official Prefect pattern for testing tasks/flows: runs a temporary
+    SQLite-backed Prefect server for the whole test session instead of
+    Prefect's default ephemeral-subprocess-server-per-run behavior, which
+    is slow and produces noisy teardown errors under pytest.
+
+    Depends on _wait_for_test_db so we never start (and later have to tear
+    down) this harness if the database isn't even reachable.
+    """
+    with prefect_test_harness():
+        yield
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _test_environment(_prefect_test_harness):
+    """
+    Force test DB env vars for the whole session and prevent db_utils from
+    reloading a local .env over them. (Env vars are already set by
+    _wait_for_test_db, but we re-assert them here in case something else
+    on the session touched os.environ in between.)
+    """
+    for key, value in TEST_DB_ENV.items():
+        os.environ[key] = value
+
+    import database.db_utils as db_utils
+
+    original_load_dotenv = db_utils.load_dotenv
+    db_utils.load_dotenv = lambda *args, **kwargs: None
+    yield
+    db_utils.load_dotenv = original_load_dotenv
 
 
 @pytest.fixture(scope="session", autouse=True)

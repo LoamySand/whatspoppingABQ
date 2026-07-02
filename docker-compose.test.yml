@@ -18,7 +18,7 @@ services:
       # Non-default host port so this never collides with a local Postgres
       - "5433:5432"
     volumes:
-      - ./tests/sql/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./tests/sql/tests-sql-schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 2s
