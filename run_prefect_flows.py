@@ -6,14 +6,23 @@ Runs ALL flows: traffic collection + event scraping
 
 import sys
 import os
+from dotenv import load_dotenv
 
-# Set Prefect API URL BEFORE importing anything
-os.environ['PREFECT_API_URL'] = 'http://10.0.0.22:4200/api'
+load_dotenv()
+
+# Set Prefect API URL BEFORE importing anything -- from .env, with a sane
+# local-dev default. Was hardcoded to the LAN IP of the Pi (10.0.0.22),
+# which meant this only worked on that specific network and broke silently
+# anywhere else (SCRUM-18 audit finding, folded into this ticket).
+PREFECT_API_URL = os.getenv("PREFECT_API_URL", "http://127.0.0.1:4200/api")
+os.environ["PREFECT_API_URL"] = PREFECT_API_URL
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# Fail fast if required config is missing
+# Fail fast if required config is missing -- this server schedules the
+# TomTom traffic flows, the Google-Maps-geocoding event ingestion flow,
+# and registers email failure/crash alerts, so it needs all four groups.
 from utils.config_validation import validate_env
 validate_env("database", "tomtom", "google_maps", "email_alerts",
              service_name="Prefect flow server (run_prefect_flows.py)")
@@ -33,9 +42,10 @@ def wait_for_server(max_attempts=30):
     import requests
     
     print("Checking server connection...")
+    health_url = PREFECT_API_URL.rstrip("/") + "/health"
     for attempt in range(1, max_attempts + 1):
         try:
-            response = requests.get("http://10.0.0.22:4200/api/health", timeout=2)
+            response = requests.get(health_url, timeout=2)
             if response.status_code == 200:
                 print(f"[OK] Connected to Prefect server (attempt {attempt})")
                 return True
@@ -66,7 +76,7 @@ if __name__ == "__main__":
     print("Event Scraping:")
     print("  - Weekly: Mondays at 9am")
     print()
-    print("Monitor at: http://10.0.0.22:4200")
+    print(f"Monitor at: {PREFECT_API_URL.rstrip('/').removesuffix('/api')}")
     print("Press Ctrl+C to stop")
     print("=" * 70)
     print()
