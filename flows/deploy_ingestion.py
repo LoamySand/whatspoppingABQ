@@ -8,14 +8,14 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from prefect import flow
-from flows.ingest_events import event_ingestion_flow_enhanced
+from flows.ingest_events import event_ingestion_flow
 
 if __name__ == "__main__":
     print("Registering deployment with Prefect server...")
 
-    event_ingestion_flow_enhanced.from_source(
+    event_ingestion_flow.from_source(
         source="/home/pi/whatspoppingABQ",
-        entrypoint="flows/ingest_events.py:event_ingestion_flow_enhanced"
+        entrypoint="flows/ingest_events.py:event_ingestion_flow"
     ).deploy(
         name="daily-event-ingestion",
         work_pool_name="default-agent-pool",

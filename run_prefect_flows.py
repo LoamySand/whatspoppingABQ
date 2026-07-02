@@ -34,7 +34,7 @@ import time
 
 # Import all flows
 from flows.collect_traffic import event_traffic_flow, baseline_traffic_flow
-from flows.ingest_events import event_ingestion_flow_enhanced
+from flows.ingest_events import event_ingestion_flow
 
 # Verify server is reachable before starting
 def wait_for_server(max_attempts=30):
@@ -120,7 +120,7 @@ if __name__ == "__main__":
         # ===== EVENT SCRAPING =====
         
         # Event scraping - weekly on Mondays at 9am
-        event_ingestion_flow_enhanced.to_deployment(
+        event_ingestion_flow.to_deployment(
             name="event-scraping-weekly",
             schedule=Cron("0 9 * * 1", timezone="America/Denver")  # Monday 9am
         )

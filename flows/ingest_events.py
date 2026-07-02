@@ -241,7 +241,7 @@ def handle_flow_crash(flow, flow_run, state):
     on_crashed=[handle_flow_crash]
 )
 
-def event_ingestion_flow_enhanced(max_pages: int = 10):
+def event_ingestion_flow(max_pages: int = 10):
     """
     Main Prefect flow for enhanced event ingestion.
     
@@ -297,4 +297,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     # Run flow
-    result = event_ingestion_flow_enhanced(max_pages=args.pages)
+    result = event_ingestion_flow(max_pages=args.pages)
