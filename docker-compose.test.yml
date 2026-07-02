@@ -1,0 +1,29 @@
+# Throwaway Postgres instance for the pytest suite (SCRUM-16).
+# This is NOT the production stack (that's SCRUM-23) — just enough
+# to run tests against a real database instead of mocks.
+#
+# Usage:
+#   docker compose -f docker-compose.test.yml up -d
+#   pytest
+#   docker compose -f docker-compose.test.yml down -v
+
+services:
+  test-db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: whatspoppingabq_test
+    ports:
+      # Non-default host port so this never collides with a local Postgres
+      - "5433:5432"
+    volumes:
+      - ./tests/sql/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+    tmpfs:
+      # No persistence needed/wanted for test data
+      - /var/lib/postgresql/data
