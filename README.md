@@ -164,7 +164,7 @@ The dashboard shows:
 ```sql
 -- Core tables
 events               -- Events with dates, venues, categories
-venue_locations      -- Eeocoded venues with coordinates
+venue_locations      -- Geocoded venues with coordinates
 traffic_measurements -- Speed/delay measurements
 
 -- Analytics views
@@ -250,19 +250,21 @@ pip install -r requirements.txt
 
 **3. Configure environment**
 
-Create `.env`:
+Create `.env` (see `.env.example` for reference):
 ```bash
-# Database (Supabase)
-DB_HOST=aws-1-us-east-2.pooler.supabase.com
-DB_PORT=6543
+# Database (Supabase or local PostgreSQL)
+DB_HOST=your-db-host
+DB_PORT=5432
 DB_NAME=postgres
-DB_USER=postgres.YOUR_PROJECT_ID
-DB_PASSWORD=your-supabase-password
+DB_USER=your-db-user
+DB_PASSWORD=your-db-password
 
 # APIs
-TOMTOM_API_KEY=your-tomtom-key
-GOOGLE_MAPS_API_KEY=your-google-key  # Optional
+TOMTOM_API_KEY=your-tomtom-key       # Required (free tier available)
+GOOGLE_MAPS_API_KEY=your-google-key  # Optional (only for geocoding)
 ```
+
+See `.env.example` in the repository for a template.
 
 **4. Initialize database**
 ```powershell
@@ -282,7 +284,7 @@ python flows\ingest_events.py
 python collectors\tomtom_event_traffic_collector.py
 
 # Run dashboard locally
-streamlit run dashboard\event_traffic_dashboard.py
+streamlit run analysis\event_traffic_dashboard.py
 ```
 
 ---
@@ -293,7 +295,7 @@ streamlit run dashboard\event_traffic_dashboard.py
 
 **Run event scraping:**
 ```powershell
-python -m flows.ingest_events_enhanced
+python flows\ingest_events.py
 ```
 
 **Collect event traffic:**
@@ -308,7 +310,7 @@ python collectors\baseline_schedule.py
 
 **View dashboard:**
 ```powershell
-streamlit run dashboard\event_traffic_dashboard.py
+streamlit run analysis\event_traffic_dashboard.py
 ```
 
 ### Automated Execution (Prefect)
@@ -322,9 +324,9 @@ prefect server start
 python run_prefect_flows.py
 ```
 **Deployed flows:**
-- `event-traffic` - Every 30 minutes
-- `baseline-7am` through `baseline-11pm` - 6x daily
-- `event-scraping-weekly` - Mondays at 9am
+- `Event Traffic Collection` - Every 30 minutes (collects traffic for active events)
+- `Baseline Traffic Collection` - 6x daily (7am, 12pm, 5pm, 7pm, 9pm, 11pm on rotation schedule for all known venues)
+- `Event Ingestion Pipeline` - Weekly on Mondays at 9am (scrapes and loads events)
 
 ### Database Queries
 
@@ -357,32 +359,33 @@ whatspoppingABQ/
 ├── collectors/                      # Traffic data collection
 │   ├── tomtom_flow_collector.py    # TomTom API wrapper
 │   ├── tomtom_event_traffic_collector.py   # Event-triggered collection
-│   └── baseline_scheduler.py       # 4-week rotation scheduler
+│   └── baseline_schedule.py        # 4-week rotation scheduler
 │
 ├── database/                        # Database layer
 │   ├── schema/                      # Initial table definitions
 │   └── db_utils.py                 # Connection & query utilities
 │
-├── dashboard/                       # Visualization
-│   └── event_traffic_dashboard.py  # Streamlit app
+├── analysis/                        # Visualization & analysis
+│   ├── event_traffic_dashboard.py  # Streamlit dashboard app
+│   └── event_traffic_correlation.py # Traffic analysis
 │
 ├── flows/                           # Prefect workflows
-│   ├── ingest_events.py            # Event scraping flow
-│   ├── ingest_events_enhanced.py   # Enhanced scraper
-│   └── collect_traffic.py          # Traffic collection flows
+│   ├── ingest_events.py            # Event scraping flow (includes enhanced version)
+│   ├── collect_traffic.py          # Traffic collection flows
+│   └── deploy_ingestion.py         # Prefect deployment config
 │
 ├── scrapers/                        # Web scraping
-│   ├── visit_abq_detail_scraper.py        # Selenium scraper
+│   └── visit_abq_detail_scraper.py # Selenium scraper
 │
 ├── scripts/                         # Utility scripts
-│   ├── geocode_venues.py           # Bulk geocoding
-│   ├── backfill_metadata.py        # Data quality fixes
-│   ├── validate_collection.py      # Data validation
-│   └── check_collection_schedule.py # API usage reporting
+│   ├── geocode_all_venues.py       # Bulk geocoding
+│   ├── back_fill_event_ids.py      # Back-fill event IDs
+│   └── back_fill_time_metadata.py  # Back-fill time data
 │
 ├── utils/                           # Helper functions
 │   └── geocoding.py                # Google Maps geocoding
 │
+├── check_collection_schedule.py    # API usage reporting
 ├── run_prefect_flows.py            # Unified Prefect server
 ├── startup_all.bat                 # Windows automation
 ├── requirements.txt                # Python dependencies
@@ -413,11 +416,14 @@ whatspoppingABQ/
 |---------|-----------|---------|------|
 | **Baseline** | 120 (peak weeks) | 3,360 | $0 |
 | **Event Traffic** | 27 (avg) | 810 | $0 |
-| **Total** | 147 | 4,170 | **$0** |
+| **Geocoding** | 5 (venue geocoding) | 150 | Free |
+| **Total** | 152 | 4,320 | **$0** |
 
 **Free Tier:** 2,500 calls/day (TomTom)  
 **Peak Usage:** 160 calls/day (6% of limit)  
 **Savings:** 75% reduction through single-point strategy
+
+**Note:** Legacy Google Maps traffic collection was deprecated (March 2026) in favor of production TomTom API. Google Maps Geocoding API is retained for venue coordinate lookup, which has sufficient free tier coverage.
 
 ### Optimization Techniques
 
@@ -530,4 +536,4 @@ Focus: Data Engineering
 
 *Built with ❤️ (or 💚?) in Albuquerque, New Mexico*
 
-*Last Updated: March 2026*
+*Last Updated: July 2026*
