@@ -44,6 +44,9 @@ CREATE TABLE app.events (
     website_url text
 );
 
+ALTER TABLE app.events
+    ADD CONSTRAINT unique_event_enhanced UNIQUE (event_name, event_start_date, venue_name);
+
 CREATE TABLE app.traffic_measurements (
     measurement_id serial PRIMARY KEY,
     venue_id integer REFERENCES app.venue_locations(venue_id),

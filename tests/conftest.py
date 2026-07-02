@@ -1,18 +1,25 @@
 """
 Shared pytest fixtures for the whatspoppingABQ test suite.
 
-IMPORTANT SAFETY NOTE:
-database.db_utils.get_connection() calls load_dotenv(override=True) on every
-call, which would clobber test env vars with whatever is in a local .env file
-(potentially real production credentials). We patch that out below and add a
-hard runtime check that refuses to run tests against anything but the test
-database. Do not remove the `_verify_test_database` fixture.
 """
 import os
+import sys
 import time
 
 import psycopg2
 import pytest
+from prefect.testing.utilities import prefect_test_harness
+
+# Force the project root to the FRONT of sys.path. This guarantees
+# `import database`, `import flows`, etc. resolve to this repo's own
+# packages, regardless of pytest's rootdir-insertion quirks on a given
+# platform, or anything else on sys.path that happens to shadow the name.
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _PROJECT_ROOT in sys.path:
+    sys.path.remove(_PROJECT_ROOT)
+sys.path.insert(0, _PROJECT_ROOT)
+
+os.environ.setdefault("PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW", "ignore")
 
 TEST_DB_ENV = {
     "DB_HOST": "localhost",
@@ -31,7 +38,19 @@ TABLES_IN_FK_ORDER = [
 
 
 @pytest.fixture(scope="session", autouse=True)
-def _test_environment():
+def _prefect_test_harness():
+    """
+    Official Prefect pattern for testing tasks/flows: runs a temporary
+    SQLite-backed Prefect server for the whole test session instead of
+    Prefect's default ephemeral-subprocess-server-per-run behavior, which
+    is slow and produces noisy teardown errors under pytest.
+    """
+    with prefect_test_harness():
+        yield
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _test_environment(_prefect_test_harness):
     """
     Force test DB env vars for the whole session and prevent db_utils from
     reloading a local .env over them.
