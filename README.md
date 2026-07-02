@@ -384,8 +384,8 @@ whatspoppingABQ/
 │
 ├── utils/                           # Helper functions
 │   └── geocoding.py                # Google Maps geocoding
+│   └── check_collection_schedule.py    # API usage reporting
 │
-├── check_collection_schedule.py    # API usage reporting
 ├── run_prefect_flows.py            # Unified Prefect server
 ├── startup_all.bat                 # Windows automation
 ├── requirements.txt                # Python dependencies
