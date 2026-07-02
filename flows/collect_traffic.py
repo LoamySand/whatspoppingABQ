@@ -98,6 +98,11 @@ if __name__ == "__main__":
     """
     Test the flows
     """
+    # Fail fast if required config is missing
+    from utils.config_validation import validate_env
+    validate_env("database", "tomtom",
+                 service_name="Traffic collection flows (flows/collect_traffic.py)")
+
     print("Testing Event Traffic Flow:")
     print("=" * 70)
     event_traffic_flow()

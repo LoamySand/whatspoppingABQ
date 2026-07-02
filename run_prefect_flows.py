@@ -13,6 +13,11 @@ os.environ['PREFECT_API_URL'] = 'http://10.0.0.22:4200/api'
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# Fail fast if required config is missing
+from utils.config_validation import validate_env
+validate_env("database", "tomtom", "google_maps", "email_alerts",
+             service_name="Prefect flow server (run_prefect_flows.py)")
+
 from prefect import serve
 from prefect.schedules import Cron
 from datetime import timedelta
@@ -34,7 +39,7 @@ def wait_for_server(max_attempts=30):
             if response.status_code == 200:
                 print(f"[OK] Connected to Prefect server (attempt {attempt})")
                 return True
-        except requests.exceptions.RequestException:
+        except:
             if attempt % 5 == 0:
                 print(f"  Still waiting for server... (attempt {attempt}/{max_attempts})")
             time.sleep(2)

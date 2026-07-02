@@ -233,3 +233,4 @@
 2026-03-25 12:00:42.694693 | Group: 4 | Time: 12:00 | Venues: 30/30 | Measurements: 30 | API calls: 30
 2026-03-25 17:00:34.883474 | Group: 4 | Time: 17:00 | Venues: 30/30 | Measurements: 30 | API calls: 30
 2026-03-25 19:12:26.759376 | Group: 4 | Time: 19:00 | Venues: 30/30 | Measurements: 30 | API calls: 30
+2026-07-02 13:24:07.920859 | Group 1 week | Not at collection time

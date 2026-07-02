@@ -25,6 +25,12 @@ st.title(" Albuquerque Event Traffic Impact Dashboard")
 st.markdown("*Analyzing how events affect local traffic patterns*")
 st.markdown("---")
 
+# Fail fast on missing DB config -- but only when running against a local
+# .env (e.g. self-hosted). On Streamlit Cloud, credentials live in st.secrets instead, so skip this check.
+if not (hasattr(st, "secrets") and "DB_HOST" in st.secrets):
+    from utils.config_validation import validate_env
+    validate_env("database", service_name="Dashboard (analysis/event_traffic_dashboard.py)")
+
 
 # ─────────────────────────────────────────────
 # Database helpers

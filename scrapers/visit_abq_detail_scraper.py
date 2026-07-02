@@ -8,7 +8,6 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.exceptions import TimeoutException
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
@@ -104,7 +103,7 @@ def scrape_events_with_details(max_pages: int = 3) -> List[Dict]:
                     logger.info(f"Page loaded with selector: {selector}")
                     page_loaded = True
                     break
-                except TimeoutException:
+                except:
                     logger.debug(f"Selector {selector} not found")
                     continue
             
@@ -179,7 +178,7 @@ def scrape_event_detail(driver, url: str) -> Optional[Dict]:
                 logger.debug(f"Detail page loaded with selector: {selector}")
                 page_loaded = True
                 break
-            except TimeoutException:
+            except:
                 logger.debug(f"Detail selector {selector} not found")
                 continue
         

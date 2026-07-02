@@ -286,7 +286,12 @@ if __name__ == "__main__":
     Run the enhanced flow
     """
     import argparse
-    
+    from utils.config_validation import validate_env
+
+    # Fail fast if required config is missing
+    validate_env("database", "google_maps", "email_alerts",
+                 service_name="Event ingestion flow (flows/ingest_events.py)")
+
     parser = argparse.ArgumentParser(description='Enhanced event ingestion flow')
     parser.add_argument('--pages', type=int, default=3, help='Number of pages to scrape')
     args = parser.parse_args()
