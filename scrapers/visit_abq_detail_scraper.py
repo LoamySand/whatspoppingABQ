@@ -12,6 +12,7 @@ from datetime import datetime
 
 from bs4 import BeautifulSoup
 from selenium import webdriver
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -77,8 +78,6 @@ def scrape_events_with_details(max_pages: int = 3) -> list[dict]:
 
     try:
         base_url = "https://www.visitalbuquerque.org/abq365/events/search-calendar/"
-        # Start with today's date to show future events
-        datetime.now().strftime("%m/%d/%Y")
 
         # Instead of pagination button clicking, use URL parameters
         # Default shows events from today onwards
@@ -102,7 +101,7 @@ def scrape_events_with_details(max_pages: int = 3) -> list[dict]:
                     logger.info(f"Page loaded with selector: {selector}")
                     page_loaded = True
                     break
-                except:
+                except TimeoutException:
                     logger.debug(f"Selector {selector} not found")
                     continue
 
@@ -181,7 +180,7 @@ def scrape_event_detail(driver, url: str) -> dict | None:
                 logger.debug(f"Detail page loaded with selector: {selector}")
                 page_loaded = True
                 break
-            except:
+            except TimeoutException:
                 logger.debug(f"Detail selector {selector} not found")
                 continue
 

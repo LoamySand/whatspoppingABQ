@@ -58,7 +58,7 @@ def wait_for_server(max_attempts=30):
             if response.status_code == 200:
                 print(f"[OK] Connected to Prefect server (attempt {attempt})")
                 return True
-        except:
+        except requests.exceptions.RequestException:
             if attempt % 5 == 0:
                 print(f"  Still waiting for server... (attempt {attempt}/{max_attempts})")
             time.sleep(2)
