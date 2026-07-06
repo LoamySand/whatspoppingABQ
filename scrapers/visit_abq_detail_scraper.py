@@ -13,20 +13,22 @@ from datetime import datetime
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
+from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.firefox.service import Service
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
+# Switched from Chrome/chromedriver to Firefox/geckodriver (SCRUM-22 follow-up).
 
-def get_chrome_service():
+
+def get_firefox_service():
     if platform.system() == "Linux":
-        return Service("/usr/bin/chromedriver")
+        return Service("/usr/bin/geckodriver")
     else:
-        from webdriver_manager.chrome import ChromeDriverManager
+        from webdriver_manager.firefox import GeckoDriverManager
 
-        return Service(ChromeDriverManager().install())
+        return Service(GeckoDriverManager().install())
 
 
 logging.basicConfig(
@@ -58,17 +60,14 @@ def truncate_field(value: str, max_length: int) -> str:
 
 def scrape_events_with_details(max_pages: int = 3) -> list[dict]:
     """Scrape events by clicking into detail pages for complete information."""
-    # Setup Chrome
+    # Setup Firefox
     options = Options()
     options.add_argument("--headless")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--window-size=1920,1080")
-    options.add_argument("--net-log-capture-mode=Everything")
+    options.add_argument("--width=1920")
+    options.add_argument("--height=1080")
 
-    logger.info("Starting Chrome browser...")
-    driver = webdriver.Chrome(service=get_chrome_service(), options=options)
+    logger.info("Starting Firefox browser...")
+    driver = webdriver.Firefox(service=get_firefox_service(), options=options)
 
     # Set longer timeouts for slow connections or heavy pages
     driver.set_page_load_timeout(180)  # 3 minutes
