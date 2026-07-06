@@ -21,11 +21,18 @@ FROM python:3.11-slim
 # free, unlike downloading a driver separately and hoping the versions agree.
 # python3-distutils-ish build tools not needed here -- psycopg2-binary and
 # selenium both ship prebuilt wheels for arm64/amd64 on this Python version.
+#
+# NOTE: Debian's chromium-driver package installs its binary directly at
+# /usr/bin/chromedriver -- there is no separate "chromium-driver" binary to
+# symlink from. (An earlier version of this Dockerfile had a `ln -sf
+# /usr/bin/chromium-driver /usr/bin/chromedriver` here, which silently
+# overwrote the real binary with a dangling symlink, since that source path
+# never existed. Confirmed via a failing selenium.NoSuchDriverException on
+# the Pi -- removed, not replaced.)
 RUN apt-get update && apt-get install -y --no-install-recommends \
         chromium \
         chromium-driver \
         curl \
-    && ln -sf /usr/bin/chromium-driver /usr/bin/chromedriver \
     && rm -rf /var/lib/apt/lists/*
 
 # Selenium launches "Chrome" by binary name; point it at the Debian chromium
