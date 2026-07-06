@@ -8,11 +8,10 @@
 #   - Prefect flows:    python run_prefect_flows.py
 #   - Dashboard:        streamlit run analysis/event_traffic_dashboard.py
 #
-# Chromium + a matching chromedriver are installed via apt (arm64-native on
-# Raspberry Pi) because scrapers/visit_abq_detail_scraper.py hardcodes
-# Service("/usr/bin/chromedriver") on Linux -- it does NOT fall back to
-# webdriver-manager there, and webdriver-manager's downloaded binaries are
-# x86_64 only anyway, so they wouldn't run on the Pi's ARM64 CPU.
+# Firefox + geckodriver are installed via apt/direct download (see below)
+# because scrapers/visit_abq_detail_scraper.py drives Firefox via geckodriver
+# -- migrated from Chromium after an unresolved upstream Chromium bug caused
+# reproducible crashes on the Pi's ARM64 kernel.
 # ---------------------------------------------------------------------------
 
 # Pinned to bookworm explicitly, NOT the floating python:3.11-slim tag.
@@ -27,28 +26,38 @@
 # without this issue.
 FROM python:3.11-slim-bookworm
 
-# Chromium + chromedriver: apt's arm64 build gives us a matching pair for
-# free, unlike downloading a driver separately and hoping the versions agree.
-# python3-distutils-ish build tools not needed here -- psycopg2-binary and
-# selenium both ship prebuilt wheels for arm64/amd64 on this Python version.
+# Firefox + geckodriver (SCRUM-22 follow-up -- see scrapers/visit_abq_detail_scraper.py
+# for the full explanation). Chromium 150 via apt hits an unresolved upstream
+# PartitionAlloc/V8 SIGTRAP crash on the Pi's aarch64 kernel; Firefox's
+# different engine/allocator isn't affected. Confirmed via extensive
+# elimination on the Pi (seccomp, process model, headless mode, user
+# privileges, memory ulimits, V8Sandbox, shm size all ruled out; identical
+# crash persisted across every one).
 #
-# NOTE: Debian's chromium-driver package installs its binary directly at
-# /usr/bin/chromedriver -- there is no separate "chromium-driver" binary to
-# symlink from. (An earlier version of this Dockerfile had a `ln -sf
-# /usr/bin/chromium-driver /usr/bin/chromedriver` here, which silently
-# overwrote the real binary with a dangling symlink, since that source path
-# never existed. Confirmed via a failing selenium.NoSuchDriverException on
-# the Pi -- removed, not replaced.)
+# firefox-esr comes from Debian's apt repo (matching arch automatically).
+# geckodriver does NOT have a Debian package with a Selenium-compatible
+# version in bookworm's repos, so it's pulled directly from Mozilla's
+# official GitHub releases instead -- pinned to a specific version (not
+# "latest") so builds are reproducible and don't silently pick up a new
+# geckodriver release mid-project. Architecture-aware: Mozilla publishes
+# separate linux64 (amd64, e.g. Windows Docker Desktop) and linux-aarch64
+# (arm64, the Pi) binaries.
+ARG GECKODRIVER_VERSION=0.37.0
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        chromium \
-        chromium-driver \
+        firefox-esr \
         curl \
+    && ARCH=$(dpkg --print-architecture) \
+    && case "$ARCH" in \
+        amd64) GECKO_ARCH="linux64" ;; \
+        arm64) GECKO_ARCH="linux-aarch64" ;; \
+        *) echo "Unsupported architecture for geckodriver: $ARCH" >&2; exit 1 ;; \
+       esac \
+    && curl -fsSL -o /tmp/geckodriver.tar.gz \
+        "https://github.com/mozilla/geckodriver/releases/download/v${GECKODRIVER_VERSION}/geckodriver-v${GECKODRIVER_VERSION}-${GECKO_ARCH}.tar.gz" \
+    && tar -xzf /tmp/geckodriver.tar.gz -C /usr/bin geckodriver \
+    && chmod +x /usr/bin/geckodriver \
+    && rm /tmp/geckodriver.tar.gz \
     && rm -rf /var/lib/apt/lists/*
-
-# Selenium launches "Chrome" by binary name; point it at the Debian chromium
-# package the same way get_chrome_service()'s hardcoded driver path assumes
-# a known-good binary location.
-ENV CHROME_BIN=/usr/bin/chromium
 
 WORKDIR /app
 
