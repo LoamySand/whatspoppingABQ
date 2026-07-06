@@ -15,7 +15,17 @@
 # x86_64 only anyway, so they wouldn't run on the Pi's ARM64 CPU.
 # ---------------------------------------------------------------------------
 
-FROM python:3.11-slim
+# Pinned to bookworm explicitly, NOT the floating python:3.11-slim tag.
+# That tag recently rolled forward to Debian 13 (trixie), which pulls in
+# Chromium 150 via apt -- a build new enough to hit an unresolved upstream
+# PartitionAlloc bug (ENOMEM -> SIGTRAP/exit 133 on some aarch64 kernels;
+# see https://issues.chromium.org/issues/364804214, status Won't Fix /
+# Not Reproducible). Confirmed on the Pi: ulimit -v and vm.overcommit_memory
+# were both already fine, ruling out the usual memory-limit workarounds --
+# this is the Chromium build itself, not a container config problem.
+# bookworm's chromium-driver package is a much older, widely-deployed build
+# without this issue.
+FROM python:3.11-slim-bookworm
 
 # Chromium + chromedriver: apt's arm64 build gives us a matching pair for
 # free, unlike downloading a driver separately and hoping the versions agree.
