@@ -1,0 +1,41 @@
+# Version control
+.git
+.gitignore
+
+# Local Python environments -- image installs its own deps from
+# requirements.txt; a stray venv/ would bloat the build context and could
+# shadow the image's installed packages if ever copied in by accident.
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Large / non-runtime assets -- 27MB SQL dump has no reason to enter any
+# build context; it isn't read by application code, only by hand when
+# restoring or inspecting a full export.
+database/event_analytics_full.sql
+screenshots/
+
+# Test artifacts -- tests run against docker-compose.test.yml's own
+# throwaway Postgres, not inside the runtime image.
+tests/
+docker-compose.test.yml
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Local-only dev scripts -- Windows-specific, not used inside Linux
+# containers.
+start_dev.ps1
+startup_all.bat
+
+# Secrets -- never bake credentials into an image layer. Real values are
+# supplied at `docker run`/compose time via env_file or environment:.
+.env
+.env.*
+!.env.example
+
+# Editor/OS cruft
+.vscode/
+.idea/
+.DS_Store

@@ -1,0 +1,94 @@
+# docker-compose.yml -- whatspoppingABQ production stack (SCRUM-23)
+#
+# All three app-role containers (prefect-server, prefect-flows) come from the
+# SAME image built from the repo's Dockerfile (SCRUM-22) -- one image, one
+# project, per Lane's call. Roles are just different `command:` overrides.
+#
+# NOT included yet:
+#   - dashboard service: currently deployed on Streamlit Community Cloud
+#     (share.streamlit.io pulls the repo directly -- this compose file never
+#     runs it). Add a service here only once SCRUM-8 actually migrates the
+#     dashboard off Streamlit Cloud onto self-hosted infra.
+#   - nginx: intentionally left out of this file. It'll live in its own
+#     compose file / service definition in SCRUM-24-26 ("Go self-hosted").
+#     The `whatspoppingabq-net` network below is created now specifically so
+#     nginx can join it later without any changes to the services here.
+#
+# Note on the DB: this stands up a self-hosted Postgres container, but the
+# app's .env still points at Supabase until the actual cutover (SCRUM-27-31).
+# Getting the container right now, ahead of the cutover, means SCRUM-27+ is
+# "flip DB_HOST" rather than "also figure out Docker."
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-event_analytics}
+    ports:
+      # Exposed on host for direct psql access during migration/testing.
+      # Revisit whether this should stay exposed once nginx/firewall rules
+      # are in place on the Pi (SCRUM-24-26).
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # App-schema-qualified init script (see database/schema/docker-init/
+      # for why this isn't the raw dump at database/schema/event_analytics_schema.sql).
+      # Only runs on first container creation against an empty data volume --
+      # rerun `docker compose down -v` if you need to force re-init.
+      - ./database/schema/docker-init/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - whatspoppingabq-net
+
+  prefect-server:
+    build: .
+    image: whatspoppingabq:latest
+    restart: unless-stopped
+    command: prefect server start --host 0.0.0.0
+    ports:
+      - "4200:4200"
+    environment:
+      PREFECT_UI_API_URL: http://localhost:4200/api
+    networks:
+      - whatspoppingabq-net
+    # No dependency on postgres: Prefect's own orchestration metadata uses
+    # its internal SQLite/Postgres config (unrelated to the app DB above),
+    # per SCRUM-55's separate finding about Prefect's backend.
+
+  prefect-flows:
+    build: .
+    image: whatspoppingabq:latest
+    restart: unless-stopped
+    command: python run_prefect_flows.py
+    env_file:
+      - .env
+    environment:
+      # Overrides whatever's in .env -- flows must reach the server by its
+      # service name on the compose network, not localhost.
+      PREFECT_API_URL: http://prefect-server:4200/api
+    depends_on:
+      prefect-server:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    networks:
+      - whatspoppingabq-net
+    # Chromium needs a reasonable /dev/shm or it'll crash on larger pages --
+    # the scraper already passes --disable-dev-shm-usage to work around the
+    # default 64MB compose/docker gives containers, so no shm_size override
+    # needed here. Flagging in case flows start crashing under load: bumping
+    # shm_size is the first thing to try.
+
+networks:
+  whatspoppingabq-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
