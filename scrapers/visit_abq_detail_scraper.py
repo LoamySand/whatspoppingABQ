@@ -23,7 +23,6 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 # Switched from Chrome/chromedriver to Firefox/geckodriver (SCRUM-22 follow-up).
 
-
 def get_firefox_service():
     if platform.system() == "Linux":
         return Service("/usr/bin/geckodriver")
@@ -67,6 +66,16 @@ def scrape_events_with_details(max_pages: int = 3) -> list[dict]:
     options.add_argument("--headless")
     options.add_argument("--width=1920")
     options.add_argument("--height=1080")
+
+    # Resource tuning for headless single-tab scraping on constrained hardware (Pi 4)
+    options.set_preference("dom.ipc.processCount", 1)  # we only ever have 1 tab open; Firefox otherwise pre-allocates a pool of content processes
+    options.set_preference("toolkit.crashreporter.enabled", False)  # eliminates the crashhelper process
+    options.set_preference("toolkit.telemetry.enabled", False)
+    options.set_preference("datareporting.healthreport.uploadEnabled", False)
+    options.set_preference("browser.safebrowsing.malware.enabled", False)  # avoids background network checks
+    options.set_preference("browser.safebrowsing.phishing.enabled", False)
+    options.set_preference("app.update.auto", False)
+    options.set_preference("media.rdd-process.enabled", False)  # scraping DOM/text, not audio/video - media decode pipeline unneeded
 
     logger.info("Starting Firefox browser...")
     driver = webdriver.Firefox(service=get_firefox_service(), options=options)
@@ -163,7 +172,6 @@ def scrape_events_with_details(max_pages: int = 3) -> list[dict]:
 
     finally:
         # driver.quit() sends its shutdown command to geckodriver, which then closes Firefox 
- 
         geckodriver_pid = None
         try:
             geckodriver_pid = driver.service.process.pid if driver.service.process else None
