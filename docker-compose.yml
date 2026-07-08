@@ -68,7 +68,15 @@ services:
     ports:
       - "4200:4200"
     environment:
-      PREFECT_UI_API_URL: http://localhost:4200/api
+      # NOT localhost: this is baked into the static UI page the browser
+      # loads, so "localhost" resolves to the *browser's own machine*, not
+      # the Pi -- that's what caused "Can't connect to Server API at
+      # localhost:4200" when accessing from another machine on the LAN.
+      # Hardcoded to the Pi's current LAN IP for now; if the Pi's IP ever
+      # changes (DHCP), this needs updating here too. Revisit once nginx +
+      # a real hostname are in place (SCRUM-24-26) so this doesn't need to
+      # track a raw IP.
+      PREFECT_UI_API_URL: http://10.0.0.22:4200/api
       # Switched from Prefect's default SQLite backend to Postgres --
       # SQLite's single-writer model was corrupting/locking under normal
       # orchestration load (recurring issue, see SCRUM-55 notes and the
