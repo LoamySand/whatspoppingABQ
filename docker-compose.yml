@@ -18,15 +18,25 @@
 # app's .env still points at Supabase until the actual cutover (SCRUM-27-31).
 # Getting the container right now, ahead of the cutover, means SCRUM-27+ is
 # "flip DB_HOST" rather than "also figure out Docker."
+#
+# LOCAL_DB_* vs DB_*: intentionally separate variable names. DB_USER/
+# DB_PASSWORD/DB_NAME are the app's Supabase credentials (Supabase's pooler
+# username looks like postgres.<project-ref>, not a plain username). Reusing
+# those to bootstrap this container's own postgres role was the original
+# bug here -- it tried to create a role literally named postgres.<project-ref>,
+# which doesn't match what the schema dump's `OWNER TO postgres` expects,
+# and broke the healthcheck too (pg_isready defaults its target database to
+# the username when none is given). LOCAL_DB_* are new, separate values for
+# this container specifically -- add them to .env (see .env.example).
 
 services:
   postgres:
     image: postgres:17
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME:-event_analytics}
+      POSTGRES_USER: ${LOCAL_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${LOCAL_DB_PASSWORD}
+      POSTGRES_DB: ${LOCAL_DB_NAME:-event_analytics}
     ports:
       # Exposed on host for direct psql access during migration/testing.
       # Revisit whether this should stay exposed once nginx/firewall rules
@@ -43,7 +53,7 @@ services:
       # rerun `docker compose down -v` if you need to force re-init.
       - ./database/schema/docker-init/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U ${LOCAL_DB_USER:-postgres} -d ${LOCAL_DB_NAME:-event_analytics}"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -66,7 +76,7 @@ services:
       # Postgres instance as the app DB but a separate `prefect` database
       # (created by 00_create_prefect_db.sql) so Prefect's own tables never
       # mix with application data.
-      PREFECT_SERVER_DATABASE_CONNECTION_URL: postgresql+asyncpg://${DB_USER:-postgres}:${DB_PASSWORD}@postgres:5432/prefect
+      PREFECT_SERVER_DATABASE_CONNECTION_URL: postgresql+asyncpg://${LOCAL_DB_USER:-postgres}:${LOCAL_DB_PASSWORD}@postgres:5432/prefect
     depends_on:
       postgres:
         condition: service_healthy
@@ -91,6 +101,11 @@ services:
         condition: service_healthy
     networks:
       - whatspoppingabq-net
+    # Chromium needs a reasonable /dev/shm or it'll crash on larger pages --
+    # the scraper already passes --disable-dev-shm-usage to work around the
+    # default 64MB compose/docker gives containers, so no shm_size override
+    # needed here. Flagging in case flows start crashing under load: bumping
+    # shm_size is the first thing to try.
 
 networks:
   whatspoppingabq-net:
