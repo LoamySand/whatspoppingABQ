@@ -34,6 +34,9 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # Runs first (filename order): creates a separate `prefect` database
+      # for Prefect's own orchestration backend, kept apart from app data.
+      - ./database/schema/docker-init/00_create_prefect_db.sql:/docker-entrypoint-initdb.d/00_create_prefect_db.sql:ro
       # App-schema-qualified init script (see database/schema/docker-init/
       # for why this isn't the raw dump at database/schema/event_analytics_schema.sql).
       # Only runs on first container creation against an empty data volume --
@@ -56,11 +59,19 @@ services:
       - "4200:4200"
     environment:
       PREFECT_UI_API_URL: http://localhost:4200/api
+      # Switched from Prefect's default SQLite backend to Postgres --
+      # SQLite's single-writer model was corrupting/locking under normal
+      # orchestration load (recurring issue, see SCRUM-55 notes and the
+      # `automation` table crash that prompted this fix). Uses the same
+      # Postgres instance as the app DB but a separate `prefect` database
+      # (created by 00_create_prefect_db.sql) so Prefect's own tables never
+      # mix with application data.
+      PREFECT_SERVER_DATABASE_CONNECTION_URL: postgresql+asyncpg://${DB_USER:-postgres}:${DB_PASSWORD}@postgres:5432/prefect
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - whatspoppingabq-net
-    # No dependency on postgres: Prefect's own orchestration metadata uses
-    # its internal SQLite/Postgres config (unrelated to the app DB above),
-    # per SCRUM-55's separate finding about Prefect's backend.
 
   prefect-flows:
     build: .
@@ -80,11 +91,6 @@ services:
         condition: service_healthy
     networks:
       - whatspoppingabq-net
-    # Chromium needs a reasonable /dev/shm or it'll crash on larger pages --
-    # the scraper already passes --disable-dev-shm-usage to work around the
-    # default 64MB compose/docker gives containers, so no shm_size override
-    # needed here. Flagging in case flows start crashing under load: bumping
-    # shm_size is the first thing to try.
 
 networks:
   whatspoppingabq-net:
