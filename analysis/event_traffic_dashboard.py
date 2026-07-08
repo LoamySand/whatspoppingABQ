@@ -288,13 +288,23 @@ try:
     events_df["event_start_date"] = pd.to_datetime(events_df["event_start_date"], errors="coerce")
     min_date = events_df["event_start_date"].min()
     max_date = events_df["event_start_date"].max()
-    default_start = datetime.now().replace(day=1).date()
+    picker_min = min_date.date() if pd.notna(min_date) else datetime(2020, 1, 1).date()
+    picker_max = max_date.date() if pd.notna(max_date) else datetime.now().date()
+
+    # Clamped, not just "1st of this month" -- if the data is stale (e.g.
+    # the scraper hasn't run recently) and the latest event is earlier than
+    # the 1st of the current month, an unclamped default_start > picker_max
+    # produces a reversed (start, end) tuple. Streamlit's date_input passes
+    # that straight to the frontend calendar component, which throws
+    # "RangeError: Invalid interval" trying to render an impossible range.
+    default_start = min(datetime.now().replace(day=1).date(), picker_max)
+    default_start = max(default_start, picker_min)
 
     date_range = st.sidebar.date_input(
         "Select range",
-        value=(default_start, max_date.date() if pd.notna(max_date) else datetime.now().date()),
-        min_value=min_date.date() if pd.notna(min_date) else datetime(2020, 1, 1).date(),
-        max_value=max_date.date() if pd.notna(max_date) else datetime.now().date(),
+        value=(default_start, picker_max),
+        min_value=picker_min,
+        max_value=picker_max,
     )
 
     # ── Apply filters ────────────────────────

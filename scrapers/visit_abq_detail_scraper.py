@@ -7,9 +7,11 @@ Extracts comprehensive event information including times, costs, sponsors.
 import logging
 import platform
 import re
+import threading
 import time
 from datetime import datetime
 
+import psutil
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
@@ -160,7 +162,35 @@ def scrape_events_with_details(max_pages: int = 3) -> list[dict]:
         return unique
 
     finally:
-        driver.quit()
+        # driver.quit() sends its shutdown command to geckodriver, which then closes Firefox 
+ 
+        geckodriver_pid = None
+        try:
+            geckodriver_pid = driver.service.process.pid if driver.service.process else None
+        except Exception:
+            pass
+
+        quit_thread = threading.Thread(target=driver.quit, daemon=True)
+        quit_thread.start()
+        quit_thread.join(timeout=15)
+
+        if quit_thread.is_alive():
+            logger.warning("driver.quit() did not complete within 15s -- geckodriver may be unresponsive")
+
+        if geckodriver_pid is not None:
+            try:
+                parent = psutil.Process(geckodriver_pid)
+                children = parent.children(recursive=True)  # Firefox's own child processes
+                for proc in children:
+                    proc.kill()
+                parent.kill()
+                psutil.wait_procs(children + [parent], timeout=5)
+                logger.info(f"Force-killed geckodriver (pid {geckodriver_pid}) and {len(children)} child process(es)")
+            except psutil.NoSuchProcess:
+                pass  # already gone -- quit() worked normally, this is the expected case
+            except Exception as e:
+                logger.warning(f"Could not force-kill geckodriver process tree: {e}")
+
         logger.info("Browser closed")
 
 
