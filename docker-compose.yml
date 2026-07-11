@@ -76,7 +76,7 @@ services:
       # changes (DHCP), this needs updating here too. Revisit once nginx +
       # a real hostname are in place (SCRUM-24-26) so this doesn't need to
       # track a raw IP.
-      PREFECT_UI_API_URL: http://10.0.0.22:4200/api
+      PREFECT_UI_API_URL: http://10.0.0.90:4200/api
       # Switched from Prefect's default SQLite backend to Postgres --
       # SQLite's single-writer model was corrupting/locking under normal
       # orchestration load (recurring issue, see SCRUM-55 notes and the
