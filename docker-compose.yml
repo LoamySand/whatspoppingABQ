@@ -68,28 +68,19 @@ services:
     ports:
       - "4200:4200"
     environment:
-      # NOT localhost: this is baked into the static UI page the browser
-      # loads, so "localhost" resolves to the *browser's own machine*, not
-      # the Pi -- that's what caused "Can't connect to Server API at
-      # localhost:4200" when accessing from another machine on the LAN.
-      # Hardcoded to the Pi's current LAN IP for now; if the Pi's IP ever
-      # changes (DHCP), this needs updating here too. Revisit once nginx +
-      # a real hostname are in place (SCRUM-24-26) so this doesn't need to
-      # track a raw IP.
       PREFECT_UI_API_URL: http://10.0.0.90:4200/api
-      # Switched from Prefect's default SQLite backend to Postgres --
-      # SQLite's single-writer model was corrupting/locking under normal
-      # orchestration load (recurring issue, see SCRUM-55 notes and the
-      # `automation` table crash that prompted this fix). Uses the same
-      # Postgres instance as the app DB but a separate `prefect` database
-      # (created by 00_create_prefect_db.sql) so Prefect's own tables never
-      # mix with application data.
       PREFECT_SERVER_DATABASE_CONNECTION_URL: postgresql+asyncpg://${LOCAL_DB_USER:-postgres}:${LOCAL_DB_PASSWORD}@postgres:5432/prefect
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - whatspoppingabq-net
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:4200/api/health')\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
 
   prefect-flows:
     build: .
@@ -99,22 +90,14 @@ services:
     env_file:
       - .env
     environment:
-      # Overrides whatever's in .env -- flows must reach the server by its
-      # service name on the compose network, not localhost.
       PREFECT_API_URL: http://prefect-server:4200/api
     depends_on:
       prefect-server:
-        condition: service_started
+        condition: service_healthy   # was: service_started
       postgres:
         condition: service_healthy
     networks:
       - whatspoppingabq-net
-    # Chromium needs a reasonable /dev/shm or it'll crash on larger pages --
-    # the scraper already passes --disable-dev-shm-usage to work around the
-    # default 64MB compose/docker gives containers, so no shm_size override
-    # needed here. Flagging in case flows start crashing under load: bumping
-    # shm_size is the first thing to try.
-
 networks:
   whatspoppingabq-net:
     driver: bridge
