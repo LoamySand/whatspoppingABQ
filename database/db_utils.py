@@ -776,16 +776,6 @@ def get_traffic_for_venue(venue_id: int, limit: int = 100) -> list[dict]:
 
 
 def geocode_and_link_events() -> int:
-    """
-    Geocode venues for events that don't have latitude/longitude coordinates.
-    Updates events with geocoded coordinates.
-
-    Returns:
-        Number of venues geocoded and updated
-
-    Raises:
-        psycopg2.Error: If database operation fails
-    """
     try:
         from utils.geocoding import geocode_venue
     except ImportError:
@@ -793,16 +783,14 @@ def geocode_and_link_events() -> int:
         return 0
 
     conn = None
-
     try:
         conn = get_connection()
-
         with conn.cursor() as cur:
-            # Get unique venues without coordinates
+            # Widened to also catch events with coords already set but no venue_id yet
             query = """
                 SELECT DISTINCT venue_name
                 FROM events
-                WHERE (latitude IS NULL OR longitude IS NULL)
+                WHERE (latitude IS NULL OR longitude IS NULL OR venue_id IS NULL)
                 AND venue_name IS NOT NULL
                 LIMIT 100
             """
@@ -810,40 +798,49 @@ def geocode_and_link_events() -> int:
             venues_to_geocode = [row[0] for row in cur.fetchall()]
 
             if not venues_to_geocode:
-                logger.info("No venues to geocode")
+                logger.info("No venues to geocode/link")
                 return 0
 
-            logger.info(f"Geocoding {len(venues_to_geocode)} venues...")
+            logger.info(f"Geocoding/linking {len(venues_to_geocode)} venues...")
 
-            geocoded_count = 0
+            linked_count = 0
 
             for venue_name in venues_to_geocode:
-                # Geocode venue
                 geocode_result = geocode_venue(venue_name)
 
                 if geocode_result:
                     latitude = geocode_result["latitude"]
                     longitude = geocode_result["longitude"]
+                    address = geocode_result.get("formatted_address")
+                    place_id = geocode_result.get("place_id")
 
-                    # Update all events with this venue
+                    # Upsert into venue_locations (ON CONFLICT venue_name) and get its venue_id
+                    venue_id = insert_venue(
+                        venue_name=venue_name,
+                        latitude=latitude,
+                        longitude=longitude,
+                        address=address,
+                        place_id=place_id,
+                    )
+
+                    # Now actually link: set lat/long AND venue_id on matching events
                     update_query = """
                         UPDATE events
-                        SET latitude = %s, longitude = %s
+                        SET latitude = %s, longitude = %s, venue_id = %s
                         WHERE venue_name = %s
-                        AND (latitude IS NULL OR longitude IS NULL)
+                        AND (latitude IS NULL OR longitude IS NULL OR venue_id IS NULL)
                     """
-                    cur.execute(update_query, (latitude, longitude, venue_name))
+                    cur.execute(update_query, (latitude, longitude, venue_id, venue_name))
 
                     rows_updated = cur.rowcount
-                    logger.info(f"Geocoded '{venue_name}': {rows_updated} events updated")
-                    geocoded_count += 1
+                    logger.info(f"Linked '{venue_name}' -> venue_id {venue_id}: {rows_updated} events updated")
+                    linked_count += 1
                 else:
                     logger.warning(f"Failed to geocode venue: {venue_name}")
 
             conn.commit()
-            logger.info(f"Geocoding complete: {geocoded_count} venues geocoded")
-
-            return geocoded_count
+            logger.info(f"Geocoding/linking complete: {linked_count} venues linked")
+            return linked_count
 
     except psycopg2.Error as e:
         if conn:
