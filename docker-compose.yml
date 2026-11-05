@@ -41,7 +41,7 @@ services:
       # Exposed on host for direct psql access during migration/testing.
       # Revisit whether this should stay exposed once nginx/firewall rules
       # are in place on the Pi (SCRUM-24-26).
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       # Runs first (filename order): creates a separate `prefect` database
@@ -66,9 +66,9 @@ services:
     restart: unless-stopped
     command: prefect server start --host 0.0.0.0
     ports:
-      - "4200:4200"
+      - "127.0.0.1:4200:4200"
     environment:
-      PREFECT_UI_API_URL: http://10.0.0.90:4200/api
+      PREFECT_UI_API_URL: http://localhost:4200/api.
       PREFECT_SERVER_DATABASE_CONNECTION_URL: postgresql+asyncpg://${LOCAL_DB_USER:-postgres}:${LOCAL_DB_PASSWORD}@postgres:5432/prefect
     depends_on:
       postgres:
