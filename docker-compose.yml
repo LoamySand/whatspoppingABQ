@@ -91,6 +91,7 @@ services:
       - .env
     environment:
       PREFECT_API_URL: http://prefect-server:4200/api
+      OLLAMA_BASE_URL: http://gonzo:11434
     depends_on:
       prefect-server:
         condition: service_healthy   # was: service_started
@@ -98,6 +99,9 @@ services:
         condition: service_healthy
     networks:
       - whatspoppingabq-net
+    extra_hosts:
+      - "gonzo:${GONZO_IP:?set GONZO_IP in .env}"
+      
 networks:
   whatspoppingabq-net:
     driver: bridge
