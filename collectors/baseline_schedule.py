@@ -13,6 +13,7 @@ import logging
 
 from collectors.baseline_collector_tomtom import collect_baseline_for_venue_tomtom
 from database.db_utils import get_connection, insert_traffic_measurement
+from utils.log_safety import redact
 from utils.time_utils import local_now
 
 logging.basicConfig(level=logging.INFO)
@@ -197,12 +198,12 @@ def collect_baseline_for_group(group_number: int, max_calls: int = 1000):
                     total_measurements += 1
                     api_calls_made += 1
                 except Exception as e:
-                    logger.error(f"Error inserting measurement: {e}")
+                    logger.error(f"Error inserting measurement: {redact(e)}")
 
             venues_processed += 1
 
         except Exception as e:
-            logger.error(f"Error collecting baseline for {venue['venue_name']}: {e}")
+            logger.error(f"Error collecting baseline for {venue['venue_name']}: {redact(e)}")
 
     logger.info("")
     logger.info(f" Processed {venues_processed}/{len(venues)} venues")
@@ -291,16 +292,16 @@ def run_baseline_collection():
         return stats
 
     except Exception as e:
-        logger.error(f"Error during baseline collection: {e}")
+        logger.error(f"Error during baseline collection: {redact(e)}")
         import traceback
 
         traceback.print_exc()
 
         # Log error to file
         with open(log_file, "a") as f:
-            f.write(f"\n{local_now()} | ERROR: {e}")
+            f.write(f"\n{local_now()} | ERROR: {redact(e)}")
 
-        return {"collected": False, "error": str(e)}
+        return {"collected": False, "error": redact(e)}
 
 
 if __name__ == "__main__":

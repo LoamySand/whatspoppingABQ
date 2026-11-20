@@ -14,6 +14,7 @@ from time import sleep
 
 from collectors.tomtom_flow_collector import measure_traffic_tomtom
 from database.db_utils import get_connection, insert_traffic_measurement
+from utils.log_safety import redact
 from utils.time_utils import local_now, local_today
 
 logging.basicConfig(level=logging.INFO)
@@ -147,7 +148,7 @@ def collect_traffic_for_event_tomtom(event: dict) -> int:
             return 1
 
         except Exception as e:
-            logger.error(f"Error inserting measurement: {e}")
+            logger.error(f"Error inserting measurement: {redact(e)}")
             return 0
 
     return 0
