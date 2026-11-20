@@ -9,25 +9,30 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import logging
-from datetime import datetime
+from datetime import date, datetime
 from time import sleep
 
 from collectors.tomtom_flow_collector import measure_traffic_tomtom
 from database.db_utils import get_connection, insert_traffic_measurement
+from utils.time_utils import local_now, local_today
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def get_events_needing_collection(window_minutes: int = 30) -> list:
+def get_events_needing_collection(window_minutes: int = 30, on_date: date | None = None) -> list:
     """
-    Get events that need traffic collection in the next N minutes.
+    Get timed events starting on on_date (default: today in America/Denver).
+
+    The date is passed in rather than using SQL CURRENT_DATE, which is the
+    database server's date (UTC) and flips at 17:00 MST / 18:00 MDT.
     """
     conn = get_connection()
 
     try:
         with conn.cursor() as cur:
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT
                     e.event_id,
                     e.event_name,
@@ -40,10 +45,12 @@ def get_events_needing_collection(window_minutes: int = 30) -> list:
                     v.longitude
                 FROM events e
                 JOIN venue_locations v ON e.venue_id = v.venue_id
-                WHERE e.event_start_date = CURRENT_DATE
+                WHERE e.event_start_date = %s
                   AND e.event_start_time IS NOT NULL
                 ORDER BY e.event_start_time
-            """)
+            """,
+                (on_date or local_today(),),
+            )
 
             events = []
             for row in cur.fetchall():
@@ -71,7 +78,7 @@ def should_collect_now_tomtom(event: dict) -> dict:
     Determine if we should collect traffic now for this event.
     Collects every 30 minutes from 2hr before to 2hr after.
     """
-    now = datetime.now()
+    now = local_now()
 
     event_datetime = datetime.combine(event["event_start_date"], event["event_start_time"])
 
@@ -150,10 +157,8 @@ def run_tomtom_event_collection(max_calls: int = 50):
     """
     Main function for TomTom event traffic collection.
     """
-    from datetime import datetime
-
     logger.info("=" * 70)
-    logger.info(f"CALLED: run_tomtom_event_collection at {datetime.now()}")
+    logger.info(f"CALLED: run_tomtom_event_collection at {local_now()}")
     logger.info(f"Max calls allowed: {max_calls}")
     logger.info("=" * 70)
 

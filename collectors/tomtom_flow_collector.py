@@ -6,10 +6,11 @@ Uses flow data at specific points for event and baseline comparison
 import json
 import logging
 import os
-from datetime import datetime
 
 import requests
 from dotenv import load_dotenv
+
+from utils.time_utils import local_now
 
 load_dotenv()
 
@@ -110,7 +111,7 @@ def get_traffic_flow_at_point(lat: float, lon: float, point_name: str = None) ->
             traffic_level = "severe"
 
         measurement = {
-            "measurement_time": datetime.now(),
+            "measurement_time": local_now(),
             "traffic_level": traffic_level,
             "avg_speed_mph": round(current_speed, 2),
             "typical_speed_mph": round(free_flow_speed, 2),

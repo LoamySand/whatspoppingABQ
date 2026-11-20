@@ -10,10 +10,10 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import logging
-from datetime import datetime
 
 from collectors.baseline_collector_tomtom import collect_baseline_for_venue_tomtom
 from database.db_utils import get_connection, insert_traffic_measurement
+from utils.time_utils import local_now
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -95,7 +95,7 @@ def get_current_baseline_group():
     Returns:
         Group number (1, 2, 3, or 4) or None
     """
-    now = datetime.now()
+    now = local_now()
     day_of_month = now.day
 
     if 1 <= day_of_month <= 7:
@@ -123,7 +123,7 @@ def should_collect_baseline_now():
         return False, None, None
 
     # Check if we're within 15 minutes of a time slot
-    current_time = datetime.now()
+    current_time = local_now()
     current_hour = current_time.hour
     current_minute = current_time.minute
 
@@ -225,7 +225,7 @@ def run_baseline_collection():
     """
     logger.info("=" * 70)
     logger.info("Baseline Traffic Collection Check")
-    logger.info(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info(f"Time: {local_now().strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info("=" * 70)
     logger.info("")
 
@@ -246,7 +246,7 @@ def run_baseline_collection():
 
             # Log to file
             with open(log_file, "a") as f:
-                f.write(f"\n{datetime.now()} | Not baseline week | No collection")
+                f.write(f"\n{local_now()} | Not baseline week | No collection")
         else:
             logger.info(
                 f"ℹ Baseline collection week (Group {group}) - but not at a collection time"
@@ -255,7 +255,7 @@ def run_baseline_collection():
 
             # Log to file
             with open(log_file, "a") as f:
-                f.write(f"\n{datetime.now()} | Group {group} week | Not at collection time")
+                f.write(f"\n{local_now()} | Group {group} week | Not at collection time")
 
         logger.info("")
         logger.info("=" * 70)
@@ -281,7 +281,7 @@ def run_baseline_collection():
 
         # Log success to file
         with open(log_file, "a") as f:
-            f.write(f"\n{datetime.now()} | ")
+            f.write(f"\n{local_now()} | ")
             f.write(f"Group: {stats['group']} | ")
             f.write(f"Time: {time_slot} | ")
             f.write(f"Venues: {stats['venues_processed']}/{stats['total_venues']} | ")
@@ -298,7 +298,7 @@ def run_baseline_collection():
 
         # Log error to file
         with open(log_file, "a") as f:
-            f.write(f"\n{datetime.now()} | ERROR: {e}")
+            f.write(f"\n{local_now()} | ERROR: {e}")
 
         return {"collected": False, "error": str(e)}
 
@@ -313,7 +313,7 @@ if __name__ == "__main__":
     print()
 
     # Show current schedule
-    now = datetime.now()
+    now = local_now()
     print(f"Current date: {now.strftime('%Y-%m-%d')}")
     print(f"Day of month: {now.day}")
     print()
