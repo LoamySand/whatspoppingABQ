@@ -13,12 +13,14 @@ from collectors.tomtom_event_traffic_collector import (
     run_tomtom_event_collection,
     should_collect_now_tomtom,
 )
+from utils.time_utils import local_now, local_today
 
 pytestmark = pytest.mark.integration
 
 
 def make_event(minutes_from_now=0, **overrides):
-    event_datetime = datetime.now() + timedelta(minutes=minutes_from_now)
+    # Built from local_now(), the same clock should_collect_now_tomtom() reads
+    event_datetime = local_now() + timedelta(minutes=minutes_from_now)
     event = {
         "event_id": 1,
         "event_name": "Test Event",
@@ -111,9 +113,9 @@ class TestCollectTrafficForEventTomtom:
             cur.execute(
                 """
                 INSERT INTO app.events (event_name, venue_id, event_start_date, event_start_time)
-                VALUES (%s, %s, CURRENT_DATE, %s) RETURNING event_id
+                VALUES (%s, %s, %s, %s) RETURNING event_id
                 """,
-                ("Baseball Game", venue_id, time(19, 0)),
+                ("Baseball Game", venue_id, local_today(), time(19, 0)),
             )
             (event_id,) = cur.fetchone()
         db_conn.commit()
@@ -174,9 +176,9 @@ class TestGetEventsNeedingCollection:
             cur.execute(
                 """
                 INSERT INTO app.events (event_name, venue_id, event_start_date, event_start_time)
-                VALUES (%s, %s, CURRENT_DATE, %s)
+                VALUES (%s, %s, %s, %s)
                 """,
-                ("Tonight's Show", venue_id, time(19, 0)),
+                ("Tonight's Show", venue_id, local_today(), time(19, 0)),
             )
         db_conn.commit()
 
@@ -191,9 +193,9 @@ class TestGetEventsNeedingCollection:
             cur.execute(
                 """
                 INSERT INTO app.events (event_name, venue_id, event_start_date, event_start_time)
-                VALUES (%s, %s, CURRENT_DATE, NULL)
+                VALUES (%s, %s, %s, NULL)
                 """,
-                ("All-Day Event", venue_id),
+                ("All-Day Event", venue_id, local_today()),
             )
         db_conn.commit()
 
@@ -205,13 +207,31 @@ class TestGetEventsNeedingCollection:
             cur.execute(
                 """
                 INSERT INTO app.events (event_name, venue_id, event_start_date, event_start_time)
-                VALUES (%s, %s, CURRENT_DATE + INTERVAL '1 day', %s)
+                VALUES (%s, %s, %s, %s)
                 """,
-                ("Tomorrow's Show", venue_id, time(19, 0)),
+                ("Tomorrow's Show", venue_id, local_today() + timedelta(days=1), time(19, 0)),
             )
         db_conn.commit()
 
         assert get_events_needing_collection() == []
+
+    def test_uses_the_given_local_date_not_the_db_server_date(self, db_conn, make_venue):
+        # 2026-11-14 18:00 MST is already the 15th in UTC. The collector must ask
+        # for the Denver date, so an event on the 14th is still "today".
+        venue_id = make_venue(name="Evening Venue")
+        with db_conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO app.events (event_name, venue_id, event_start_date, event_start_time)
+                VALUES (%s, %s, %s, %s)
+                """,
+                ("Late Show", venue_id, date(2026, 11, 14), time(19, 0)),
+            )
+        db_conn.commit()
+
+        events = get_events_needing_collection(on_date=date(2026, 11, 14))
+        assert [e["event_name"] for e in events] == ["Late Show"]
+        assert get_events_needing_collection(on_date=date(2026, 11, 15)) == []
 
     def test_excludes_events_without_a_venue(self, db_conn):
         # venue_id is nullable on app.events, and the query INNER JOINs venue_locations
@@ -219,9 +239,9 @@ class TestGetEventsNeedingCollection:
             cur.execute(
                 """
                 INSERT INTO app.events (event_name, venue_id, event_start_date, event_start_time)
-                VALUES (%s, NULL, CURRENT_DATE, %s)
+                VALUES (%s, NULL, %s, %s)
                 """,
-                ("No Venue Event", time(19, 0)),
+                ("No Venue Event", local_today(), time(19, 0)),
             )
         db_conn.commit()
 

@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from collectors.baseline_schedule import run_baseline_collection
 from collectors.tomtom_event_traffic_collector import run_tomtom_event_collection
+from utils.time_utils import local_now
 
 
 @task(retries=3, retry_delay_seconds=60)
@@ -18,9 +19,7 @@ def collect_event_traffic():
     """
     Task to collect event traffic
     """
-    from datetime import datetime
-
-    print(f"[TASK] Calling run_tomtom_event_collection at {datetime.now()}")
+    print(f"[TASK] Calling run_tomtom_event_collection at {local_now()}")
 
     stats = run_tomtom_event_collection(max_calls=50)
 
@@ -57,9 +56,7 @@ def event_traffic_flow():
     """
     Flow to collect traffic for events (runs every 30 minutes)
     """
-    from datetime import datetime
-
-    print(f"[START] Event traffic flow started at {datetime.now()}")
+    print(f"[START] Event traffic flow started at {local_now()}")
 
     result = collect_event_traffic()
 
@@ -69,7 +66,7 @@ def event_traffic_flow():
     print(f"  Measurements: {result['measurements']}")
     print(f"  API calls: {result['api_calls']}")
 
-    print(f"[END] Event traffic flow finished at {datetime.now()}")
+    print(f"[END] Event traffic flow finished at {local_now()}")
 
     return result
 
