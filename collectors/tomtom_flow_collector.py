@@ -10,6 +10,7 @@ import os
 import requests
 from dotenv import load_dotenv
 
+from utils.log_safety import describe_request_error, redact
 from utils.time_utils import local_now
 
 load_dotenv()
@@ -131,10 +132,14 @@ def get_traffic_flow_at_point(lat: float, lon: float, point_name: str = None) ->
         return measurement
 
     except requests.exceptions.RequestException as e:
-        logger.error(f"TomTom Flow API error: {e}")
+        # Never log {e}: a requests error carries the full URL, including key=
+        logger.error(
+            f"TomTom Flow API error: {describe_request_error(e)} "
+            f"for {point_name or 'point'} ({lat:.5f}, {lon:.5f})"
+        )
         return None
     except Exception as e:
-        logger.error(f"Error processing TomTom flow data: {e}")
+        logger.error(f"Error processing TomTom flow data: {redact(e)}")
         import traceback
 
         traceback.print_exc()

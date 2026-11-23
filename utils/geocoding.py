@@ -11,6 +11,8 @@ from time import sleep
 import googlemaps
 from dotenv import load_dotenv
 
+from utils.log_safety import redact
+
 # Load environment variables
 load_dotenv()
 
@@ -77,7 +79,7 @@ def geocode_venue(venue_name: str, city: str = "Albuquerque", state: str = "NM")
         return geocode_data
 
     except Exception as e:
-        logger.error(f"Error geocoding {venue_name}: {e}")
+        logger.error(f"Error geocoding {venue_name}: {redact(e)}")
         return None
 
 
@@ -113,7 +115,7 @@ def reverse_geocode(latitude: float, longitude: float) -> dict | None:
         return address_data
 
     except Exception as e:
-        logger.error(f"Error reverse geocoding: {e}")
+        logger.error(f"Error reverse geocoding: {redact(e)}")
         return None
 
 

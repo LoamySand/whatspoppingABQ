@@ -92,6 +92,11 @@ services:
     environment:
       PREFECT_API_URL: http://prefect-server:4200/api
       OLLAMA_BASE_URL: http://gonzo:11434
+      # Route the app's own loggers through Prefect's handlers. Without this,
+      # Prefect's logging config drops their INFO lines (WHAT-66).
+      PREFECT_LOGGING_EXTRA_LOGGERS: collectors,database,utils,flows,scrapers
+      # Module-level logs outside a flow run would otherwise warn on every import
+      PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW: ignore
     depends_on:
       prefect-server:
         condition: service_healthy   # was: service_started

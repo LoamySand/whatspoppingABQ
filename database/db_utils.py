@@ -13,6 +13,8 @@ import psycopg2
 from dotenv import load_dotenv
 from psycopg2.extras import execute_values
 
+from utils.log_safety import redact
+
 # Load environment variables from .env file
 # Find the project root (.env location) relative to this file
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -70,11 +72,9 @@ def get_connection():
     user = os.getenv("DB_USER", "postgres")
     password = os.getenv("DB_PASSWORD")
 
-    # DEBUG: Log connection details
-    logger.info(f"[CONNECTION] Host: {host}")
-    logger.info(f"[CONNECTION] Port: {port}")
-    logger.info(f"[CONNECTION] Database: {database}")
-    logger.info(f"[CONNECTION] User: {user}")
+    # Connection target at DEBUG only (WHAT-69). The user is left out: on
+    # Supabase it embeds the project ref.
+    logger.debug(f"[CONNECTION] {host}:{port}/{database}")
 
     # Determine if using Supabase
     is_supabase = "supabase" in host
@@ -100,7 +100,7 @@ def get_connection():
         logger.debug("Database connection established")
         return conn
     except psycopg2.Error as e:
-        logger.error(f"Error connecting to database: {e}")
+        logger.error(f"Error connecting to database: {redact(e)}")
         raise
 
 
@@ -146,7 +146,7 @@ def test_connection() -> bool:
         logger.info(" Database connection test successful")
         return True
     except Exception as e:
-        logger.error(f" Database connection test failed: {e}")
+        logger.error(f" Database connection test failed: {redact(e)}")
         return False
 
 
@@ -833,7 +833,9 @@ def geocode_and_link_events() -> int:
                     cur.execute(update_query, (latitude, longitude, venue_id, venue_name))
 
                     rows_updated = cur.rowcount
-                    logger.info(f"Linked '{venue_name}' -> venue_id {venue_id}: {rows_updated} events updated")
+                    logger.info(
+                        f"Linked '{venue_name}' -> venue_id {venue_id}: {rows_updated} events updated"
+                    )
                     linked_count += 1
                 else:
                     logger.warning(f"Failed to geocode venue: {venue_name}")
