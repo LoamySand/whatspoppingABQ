@@ -9,7 +9,7 @@
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.28-red.svg)](https://streamlit.io/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-**[Live Dashboard](https://whatspoppingabq.streamlit.app/)** | **[GitHub](https://github.com/LoamySand/whatspoppingABQ)**
+**[GitHub](https://github.com/LoamySand/whatspoppingABQ)** | Dashboard offline during the rebuild
 
 ---
 
@@ -17,7 +17,7 @@
 
 - [Overview](#overview)
 - [Key Features](#key-features)
-- [Live Demo](#live-demo)
+- [Dashboard](#dashboard)
 - [Tech Stack](#tech-stack)
 - [Architecture](#architecture)
 - [Data Pipeline](#data-pipeline)
@@ -34,7 +34,7 @@
 
 ##  Overview
 
-**What's Popping ABQ** is a production-ready data platform that automatically:
+**What's Popping ABQ** is a personal data project that automatically:
 
 1. **Scrapes** upcoming events from Visit Albuquerque
 2. **Geocodes** unique venues across Albuquerque
@@ -64,17 +64,15 @@
 
 ### Analytics & Visualization
 -  **Speed-Based Impact** - Custom delay calculation that is more reliable than provider-reported delay metrics
--  **Interactive Dashboard** - Live Streamlit app deployed to cloud
+-  **Interactive Dashboard** - Streamlit app (offline during the rebuild)
 -  **Historical Comparison** - Baseline traffic patterns vs. event conditions
 -  **Category Analysis** - Impact breakdown by event type (sports, music, festivals)
 
 ---
 
-##  Live Demo
+##  Dashboard
 
-**[View Dashboard →](https://whatspoppingabq.streamlit.app/)**
-
-The dashboard shows:
+The Streamlit dashboard is offline while the project is rebuilt on self-hosted infrastructure. It shows:
 - Events analyzed with traffic impact measurements
 - Impact above baseline (speed-based calculation)
 - Geographic distribution of events and impact
