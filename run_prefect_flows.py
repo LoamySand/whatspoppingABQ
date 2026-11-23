@@ -23,7 +23,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Fail fast if required config is missing -- this server schedules the
 # TomTom traffic flows, the Google-Maps-geocoding event ingestion flow,
-# and registers email failure/crash alerts, so it needs all four groups.
+# registers email failure/crash alerts, and pings Healthchecks.io after
+# every run (WHAT-66), so it needs all five groups.
 from utils.config_validation import validate_env
 
 validate_env(
@@ -31,6 +32,7 @@ validate_env(
     "tomtom",
     "google_maps",
     "email_alerts",
+    "healthchecks",
     service_name="Prefect flow server (run_prefect_flows.py)",
 )
 
@@ -43,6 +45,7 @@ from prefect.schedules import Cron
 # Import all flows
 from flows.collect_traffic import baseline_traffic_flow, event_traffic_flow
 from flows.ingest_events import event_ingestion_flow
+from flows.monitoring import daily_data_check
 
 
 # Verify server is reachable before starting
@@ -120,5 +123,11 @@ if __name__ == "__main__":
         event_ingestion_flow.to_deployment(
             name="event-scraping-weekly",
             schedule=Cron("0 9 * * 1", timezone="America/Denver"),  # Monday 9am
+        ),
+        # ===== MONITORING (WHAT-66) =====
+        # Daily check that baseline rows were written in the last 24 hours
+        daily_data_check.to_deployment(
+            name="daily-data-check",
+            schedule=Cron("30 8 * * *", timezone="America/Denver"),
         ),
     )

@@ -24,6 +24,11 @@ SECRET_ENV_VARS = (
     "GOOGLE_MAPS_API_KEY",
     "DB_PASSWORD",
     "GMAIL_APP_PASSWORD",
+    # Healthchecks ping URLs: anyone holding one can send fake pings
+    "HC_PING_EVENT_TRAFFIC",
+    "HC_PING_BASELINE",
+    "HC_PING_INGESTION",
+    "HC_PING_DAILY_ROWS",
 )
 _MIN_SECRET_LENGTH = 12
 

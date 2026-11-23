@@ -11,7 +11,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from collectors.baseline_schedule import run_baseline_collection
 from collectors.tomtom_event_traffic_collector import run_tomtom_event_collection
+from flows.monitoring import baseline_run_outcome, event_run_outcome
+from utils.healthchecks import ping
+from utils.log_safety import redact
+from utils.logging_setup import enable_app_logging
 from utils.time_utils import local_now
+
+enable_app_logging()
 
 
 @task(retries=3, retry_delay_seconds=60)
@@ -47,8 +53,9 @@ def collect_baseline_traffic():
             "measurements": result["measurements_collected"],
             "api_calls": result["api_calls_made"],
         }
-    else:
-        return {"skipped": True, "reason": result.get("reason", "Not collection time")}
+    if result.get("error"):
+        return {"error": result["error"]}
+    return {"skipped": True, "reason": result.get("reason", "Not collection time")}
 
 
 @flow(name="Event Traffic Collection")
@@ -58,7 +65,11 @@ def event_traffic_flow():
     """
     print(f"[START] Event traffic flow started at {local_now()}")
 
-    result = collect_event_traffic()
+    try:
+        result = collect_event_traffic()
+    except Exception as e:
+        ping("HC_PING_EVENT_TRAFFIC", ok=False, message=f"Event traffic flow error: {redact(e)}")
+        raise
 
     print("[OK] Event traffic collection complete")
     print(f"  Events checked: {result['events_checked']}")
@@ -68,6 +79,12 @@ def event_traffic_flow():
 
     print(f"[END] Event traffic flow finished at {local_now()}")
 
+    # WHAT-66: a run that tried to collect and got nothing fails loudly
+    ok, message = event_run_outcome(result)
+    ping("HC_PING_EVENT_TRAFFIC", ok=ok, message=message)
+    if not ok:
+        raise RuntimeError(message)
+
     return result
 
 
@@ -76,9 +93,15 @@ def baseline_traffic_flow():
     """
     Flow to collect baseline traffic (runs 6 times/day)
     """
-    result = collect_baseline_traffic()
+    try:
+        result = collect_baseline_traffic()
+    except Exception as e:
+        ping("HC_PING_BASELINE", ok=False, message=f"Baseline flow error: {redact(e)}")
+        raise
 
-    if result.get("skipped"):
+    if result.get("error"):
+        print(f"Baseline collection error: {result['error']}")
+    elif result.get("skipped"):
         print(f"Baseline collection skipped: {result['reason']}")
     else:
         print("[OK] Baseline traffic collection complete")
@@ -86,6 +109,12 @@ def baseline_traffic_flow():
         print(f"  Venues processed: {result['venues_processed']}")
         print(f"  Measurements: {result['measurements']}")
         print(f"  API calls: {result['api_calls']}")
+
+    # WHAT-66: every scheduled baseline run should collect something
+    ok, message = baseline_run_outcome(result)
+    ping("HC_PING_BASELINE", ok=ok, message=message)
+    if not ok:
+        raise RuntimeError(message)
 
     return result
 

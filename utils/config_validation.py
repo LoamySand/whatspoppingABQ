@@ -26,6 +26,13 @@ REQUIRED_VARS = {
     "tomtom": ["TOMTOM_API_KEY"],
     "google_maps": ["GOOGLE_MAPS_API_KEY"],
     "email_alerts": ["ALERT_EMAIL", "GMAIL_APP_PASSWORD"],
+    # Healthchecks.io ping URLs, one per check (WHAT-66, utils/healthchecks.py)
+    "healthchecks": [
+        "HC_PING_EVENT_TRAFFIC",
+        "HC_PING_BASELINE",
+        "HC_PING_INGESTION",
+        "HC_PING_DAILY_ROWS",
+    ],
 }
 
 

@@ -18,6 +18,9 @@ from database.db_utils import (
     insert_events,
 )
 from scrapers.visit_abq_detail_scraper import scrape_events_with_details, validate_event
+from utils.logging_setup import enable_app_logging
+
+enable_app_logging()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -230,16 +233,21 @@ def generate_summary_task(load_stats: dict):
 
 def handle_flow_failure(flow, flow_run, state):
     """Called automatically by Prefect when the flow fails."""
+    from utils.healthchecks import ping
+    from utils.log_safety import redact
     from utils.notify import send_failure_alert
 
-    error = str(state.result(raise_on_failure=False))
+    error = redact(state.result(raise_on_failure=False))
+    ping("HC_PING_INGESTION", ok=False, message=f"Ingestion flow failed: {error}")
     send_failure_alert(flow_name=flow.name, error=error, run_name=flow_run.name)
 
 
 def handle_flow_crash(flow, flow_run, state):
     """Called automatically by Prefect when the flow crashes."""
+    from utils.healthchecks import ping
     from utils.notify import send_crash_alert
 
+    ping("HC_PING_INGESTION", ok=False, message=f"Ingestion flow run '{flow_run.name}' crashed")
     send_crash_alert(
         flow_name=flow.name, details=f"Flow run '{flow_run.name}' crashed unexpectedly."
     )
@@ -286,6 +294,16 @@ def event_ingestion_flow(max_pages: int = 10):
     # Task 5: Summarize
     summary = generate_summary_task(load_stats)
     summary["geocoded_venues"] = geocoded_count
+
+    # WHAT-66: zero events loaded means the scrape broke. Raising sends the
+    # failure email through handle_flow_failure, which also pings /fail.
+    from flows.monitoring import ingestion_outcome
+    from utils.healthchecks import ping
+
+    ok, message = ingestion_outcome(summary)
+    if not ok:
+        raise RuntimeError(message)
+    ping("HC_PING_INGESTION", ok=True, message=message)
 
     logger.info("Enhanced event ingestion flow complete")
     return summary
